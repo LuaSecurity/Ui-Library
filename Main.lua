@@ -65,7 +65,7 @@ local Theme = {
     Background = Color3.fromRGB(13, 14, 18),
     Panel = Color3.fromRGB(18, 19, 25),
     Element = Color3.fromRGB(24, 25, 33),
-    ElementHover = Color3.fromRGB(20, 21, 28),
+    ElementHover = Color3.fromRGB(20, 21, 28), -- Darker than Element
     Accent = Color3.fromRGB(0, 110, 255),
     Text = Color3.fromRGB(220, 220, 225),
     TextMuted = Color3.fromRGB(140, 140, 145),
@@ -143,6 +143,7 @@ function Ui:CreateWindow(Config)
         AnchorPoint = Vector2.new(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 100
     })
     
+    -- Custom Resize Grip icon for a better look
     for i = 1, 3 do
         Create("Frame", {
             Parent = ResizeHandle, Size = UDim2.new(0, 4 + (i * 3), 0, 2),
@@ -294,12 +295,9 @@ function Ui:CreateWindow(Config)
         Position = UDim2.new(1, -15, 0, 20), AnchorPoint = Vector2.new(1, 0),
         BackgroundTransparency = 1, ZIndex = 5000
     })
-    
     Create("UIListLayout", {
-        Parent = NotificationContainer, 
-        SortOrder = "LayoutOrder",
-        VerticalAlignment = "Bottom", 
-        HorizontalAlignment = "Right",
+        Parent = NotificationContainer, SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right,
         Padding = UDim.new(0, 10)
     })
 
@@ -329,7 +327,7 @@ function Ui:CreateWindow(Config)
     local CloseOverlay = Create("TextButton", { Parent = ScreenGui, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 1500, Visible = false })
 
     local ModalOverlay = Create("TextButton", {
-        Parent = ScreenGui, Size = UDim2.new(1, 0, 1, 0),
+        Parent = ScreenGui, Size = UDim2.new(1, 0, 1, 0), -- moved to screengui to cover entire screen
         BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.5,
         Text = "", ZIndex = 3000, Visible = false, AutoButtonColor = false
     })
@@ -450,6 +448,7 @@ function Ui:CreateWindow(Config)
         CtxModeList.Visible = false
         TweenService:Create(CtxChevron, TweenInfo.new(0), {Rotation = 0}):Play()
         
+        -- Position at mouse with boundary clamps
         ContextMenu.AnchorPoint = Vector2.new(0, 0)
         local cSize = ContextMenu.AbsoluteSize
         local sSize = ScreenGui.AbsoluteSize
@@ -925,7 +924,7 @@ function Ui:CreateWindow(Config)
                 local function SetValue(newValue)
                     newValue = math.clamp(newValue, Min, Max)
                     newValue = math.floor((newValue / Step) + 0.5) * Step
-                    Value = tonumber(string.format("%."..Decimals.."f", newValue))
+                    Value = tonumber(string.format("%."..Decimals.."f", newValue)) -- Fixing floating precision
                     
                     WindowObj.Flags[Flag] = Value
                     local Percent = (Value - Min) / (Max - Min)
@@ -1086,8 +1085,9 @@ function Ui:CreateWindow(Config)
         self.CurrentTab = TabName
     end
 
+    -- Automatically setup Config/Settings as the last tab
     local SettingsTab = WindowObj:CreateTab("settings", "Settings")
-    SettingsTab.Button.LayoutOrder = 9999
+    SettingsTab.Button.LayoutOrder = 9999 -- Keeps it at the end
 
     local CfgLeft = SettingsTab:CreateSection("Saved Configs", "Left")
     local UiSettings = SettingsTab:CreateSection("UI Settings", "Left")
