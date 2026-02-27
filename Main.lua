@@ -294,9 +294,12 @@ function Ui:CreateWindow(Config)
         Position = UDim2.new(1, -15, 0, 20), AnchorPoint = Vector2.new(1, 0),
         BackgroundTransparency = 1, ZIndex = 5000
     })
+    
     Create("UIListLayout", {
-        Parent = NotificationContainer, SortOrder = Enum.SortOrder.LayoutOrder,
-        VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        Parent = NotificationContainer, 
+        SortOrder = "LayoutOrder",
+        VerticalAlignment = "Bottom", 
+        HorizontalAlignment = "Right",
         Padding = UDim.new(0, 10)
     })
 
