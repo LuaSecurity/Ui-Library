@@ -4,6 +4,7 @@ local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
+local TextService = game:GetService("TextService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -72,6 +73,14 @@ local Theme = {
     TextDark = Color3.fromRGB(100, 100, 105),
     Divider = Color3.fromRGB(28, 29, 38),
     Danger = Color3.fromRGB(255, 75, 75)
+}
+
+local NotificationGradients = {
+    white = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 230, 230)), ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 120, 120))}),
+    red = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 100)), ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 20, 20))}),
+    blue = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 170, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 70, 180))}),
+    green = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 255, 100)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 150, 20))}),
+    yellow = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 100)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 180, 20))})
 }
 
 local CurrentFont = Enum.Font.GothamBold
@@ -283,7 +292,7 @@ function Ui:CreateWindow(Config)
         Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 2
     })
     Create("UIPadding", { Parent = TabList, PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5) })
-    Create("UIListLayout", { Parent = TabList, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+    Create("UIListLayout", { Parent = TabList, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 6), SortOrder = 2 })
 
     local ContentContainer = Create("Frame", {
         Name = "Content", Parent = MainFrame,
@@ -291,12 +300,12 @@ function Ui:CreateWindow(Config)
     })
 
     local NotificationContainer = Create("Frame", {
-        Name = "NotificationContainer", Parent = ScreenGui, Size = UDim2.new(0, 300, 1, -40),
+        Name = "NotificationContainer", Parent = ScreenGui, Size = UDim2.new(0, 400, 1, -40),
         Position = UDim2.new(1, -15, 0, 20), AnchorPoint = Vector2.new(1, 0),
         BackgroundTransparency = 1, ZIndex = 5000
     })
     Create("UIListLayout", {
-        Parent = NotificationContainer, SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = NotificationContainer, SortOrder = 2,
         VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right,
         Padding = UDim.new(0, 10)
     })
@@ -327,7 +336,7 @@ function Ui:CreateWindow(Config)
     local CloseOverlay = Create("TextButton", { Parent = ScreenGui, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 1500, Visible = false })
 
     local ModalOverlay = Create("TextButton", {
-        Parent = ScreenGui, Size = UDim2.new(1, 0, 1, 0), -- moved to screengui to cover entire screen
+        Parent = ScreenGui, Size = UDim2.new(1, 0, 1, 0),
         BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.5,
         Text = "", ZIndex = 3000, Visible = false, AutoButtonColor = false
     })
@@ -338,7 +347,7 @@ function Ui:CreateWindow(Config)
     })
     Create("UICorner", { Parent = ContextMenu, CornerRadius = UDim.new(0, 8) })
     Create("UIStroke", { Parent = ContextMenu, Color = Theme.Divider, Thickness = 1 })
-    Create("UIListLayout", { Parent = ContextMenu, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center })
+    Create("UIListLayout", { Parent = ContextMenu, SortOrder = 2, Padding = UDim.new(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = Enum.VerticalAlignment.Center })
 
     local CtxKeybindBtn = Create("TextButton", {
         Parent = ContextMenu, Size = UDim2.new(1, -10, 0, 30),
@@ -364,7 +373,7 @@ function Ui:CreateWindow(Config)
     })
     Create("UICorner", { Parent = CtxModeList, CornerRadius = UDim.new(0, 6) })
     Create("UIStroke", { Parent = CtxModeList, Color = Theme.Divider, Thickness = 1 })
-    local CtxModeListLayout = Create("UIListLayout", { Parent = CtxModeList, SortOrder = Enum.SortOrder.LayoutOrder })
+    local CtxModeListLayout = Create("UIListLayout", { Parent = CtxModeList, SortOrder = 2 })
 
     local ActiveContextConfig = nil
     local Modes = {"Always", "Toggle", "Hold", "Click"}
@@ -501,38 +510,59 @@ function Ui:CreateWindow(Config)
     end)
 
     function WindowObj:Notify(Config)
-        local NTitle = Config.Title or "Notification"
-        local Content = Config.Content or "Message"
+        local Content = Config.Content or Config.Title or "Notification"
         local Duration = Config.Duration or 3
+        local GradientType = Config.Type or "white"
+        local TargetGradient = NotificationGradients[GradientType] or NotificationGradients["white"]
+        
+        -- Get text bounds to dynamically scale the width of the notification
+        local textSize = TextService:GetTextSize(Content, 12, CurrentFont, Vector2.new(9999, 20))
+        local notifWidth = math.max(200, textSize.X + 30) -- Minimum width of 200, otherwise perfectly scales with padding
+        local targetHeight = 45
 
         local NotifFrame = Create("Frame", {
-            Parent = NotificationContainer, Size = UDim2.new(1, 0, 0, 0),
-            BackgroundColor3 = Theme.Panel, ClipsDescendants = true, ZIndex = 5001
+            Parent = NotificationContainer, Size = UDim2.new(0, notifWidth, 0, 0),
+            BackgroundColor3 = Theme.Background, ClipsDescendants = true, ZIndex = 5001
         })
         Create("UICorner", { Parent = NotifFrame, CornerRadius = UDim.new(0, 6) })
         Create("UIStroke", { Parent = NotifFrame, Color = Color3.new(0, 0, 0), Thickness = 1 })
 
         local ContentWrapper = Create("Frame", { Parent = NotifFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1 })
-        Create("UIPadding", { Parent = ContentWrapper, PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 15), PaddingRight = UDim.new(0, 15) })
 
-        local TitleLbl = Create("TextLabel", {
-            Parent = ContentWrapper, Size = UDim2.new(1, 0, 0, 16),
-            BackgroundTransparency = 1, Font = CurrentFont, TextSize = 14,
-            TextColor3 = Theme.Accent, Text = NTitle, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 5002
-        })
-        
         local DescLbl = Create("TextLabel", {
-            Parent = ContentWrapper, Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0, 20),
+            Parent = ContentWrapper, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 12, 0, 8),
             BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
             TextColor3 = Theme.Text, Text = Content, TextXAlignment = Enum.TextXAlignment.Left,
-            TextWrapped = true, ZIndex = 5002, AutomaticSize = Enum.AutomaticSize.Y
+            ZIndex = 5002
         })
 
-        local TargetHeight = 10 + 16 + 4 + DescLbl.TextBounds.Y + 10 
-        TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, TargetHeight)}):Play()
+        local ProgressBg = Create("Frame", {
+            Parent = ContentWrapper, Size = UDim2.new(1, -24, 0, 5), Position = UDim2.new(0, 12, 0, 30),
+            BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 5002
+        })
+        Create("UICorner", { Parent = ProgressBg, CornerRadius = UDim.new(1, 0) })
+        Create("UIStroke", { Parent = ProgressBg, Color = Theme.Divider, Thickness = 1 })
 
+        local ProgressFill = Create("Frame", {
+            Parent = ProgressBg, Size = UDim2.new(1, 0, 1, 0),
+            BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 5003
+        })
+        Create("UICorner", { Parent = ProgressFill, CornerRadius = UDim.new(1, 0) })
+        
+        Create("UIGradient", {
+            Parent = ProgressFill, Color = TargetGradient
+        })
+
+        -- Spawn Animation
+        TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, notifWidth, 0, targetHeight)}):Play()
+
+        -- Deplete Progress Bar Animation
+        local progressTween = TweenService:Create(ProgressFill, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)})
+        progressTween:Play()
+
+        -- Destroy Animation
         task.delay(Duration, function()
-            local fadeOut = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, 0)})
+            local fadeOut = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, notifWidth, 0, 0)})
             fadeOut:Play()
             fadeOut.Completed:Connect(function() NotifFrame:Destroy() end)
         end)
@@ -574,10 +604,10 @@ function Ui:CreateWindow(Config)
         })
         
         local LeftCol = Create("Frame", { Parent = Page, Size = UDim2.new(0.49, 0, 0, 0), BackgroundTransparency = 1, ZIndex = 2 })
-        local LeftLayout = Create("UIListLayout", { Parent = LeftCol, Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder })
+        local LeftLayout = Create("UIListLayout", { Parent = LeftCol, Padding = UDim.new(0, 10), SortOrder = 2 })
         
         local RightCol = Create("Frame", { Parent = Page, Size = UDim2.new(0.49, 0, 0, 0), Position = UDim2.new(0.51, 0, 0, 0), BackgroundTransparency = 1, ZIndex = 2 })
-        local RightLayout = Create("UIListLayout", { Parent = RightCol, Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder })
+        local RightLayout = Create("UIListLayout", { Parent = RightCol, Padding = UDim.new(0, 10), SortOrder = 2 })
 
         local function UpdateCanvas()
             LeftCol.Size = UDim2.new(0.49, 0, 0, LeftLayout.AbsoluteContentSize.Y)
@@ -592,6 +622,8 @@ function Ui:CreateWindow(Config)
             Parent = TabList, Size = UDim2.new(0, 44, 1, -10), ZIndex = 1, LayoutOrder = self.TabCount,
             BackgroundTransparency = 1, BorderSizePixel = 0, Text = "", AutoButtonColor = false, ClipsDescendants = true
         })
+        
+        Tab.Button = TabBtn 
 
         local TabIcon = Create("ImageLabel", {
             Parent = TabBtn, Size = UDim2.new(0, 16, 0, 16), AnchorPoint = Vector2.new(0.5, 0.5),
@@ -627,7 +659,7 @@ function Ui:CreateWindow(Config)
             local Section = Create("Frame", { Parent = ParentCol, Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 3 })
             Create("UICorner", { Parent = Section, CornerRadius = UDim.new(0, 8) })
             
-            local SectionLayout = Create("UIListLayout", { Parent = Section, Padding = UDim.new(0, 0), SortOrder = Enum.SortOrder.LayoutOrder })
+            local SectionLayout = Create("UIListLayout", { Parent = Section, Padding = UDim.new(0, 0), SortOrder = 2 })
             Create("UIPadding", { Parent = Section, PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10) })
 
             SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -803,7 +835,7 @@ function Ui:CreateWindow(Config)
                 })
                 Create("UICorner", { Parent = ListContainer, CornerRadius = UDim.new(0, 6) })
                 Create("UIStroke", { Parent = ListContainer, Color = Theme.Divider, Thickness = 1 })
-                local ListLayout = Create("UIListLayout", { Parent = ListContainer, SortOrder = Enum.SortOrder.LayoutOrder })
+                local ListLayout = Create("UIListLayout", { Parent = ListContainer, SortOrder = 2 })
                 
                 table.insert(WindowObj.DropdownContainers, {Container = ListContainer, Btn = MainBtn, Chevron = Chevron})
 
