@@ -11,10 +11,10 @@ local LocalPlayer = Players.LocalPlayer
 
 local Username = "anonymous_800"
 if LocalPlayer then
-    if LocalPlayer.DisplayName and LocalPlayer.DisplayName ~= LocalPlayer.Name then
-        Username = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
+    if LocalPlayer.DisplayName == LocalPlayer.Name then
+        Username = "@" .. LocalPlayer.Name
     else
-        Username = LocalPlayer.Name
+        Username = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
     end
 end
 
@@ -132,7 +132,7 @@ end
 local function AnimateSeamlessGradient(gradient)
     gradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Theme.Accent),
-        ColorSequenceKeypoint.new(0.5, Color3.new(0.4, 0.45, 0.55)),
+        ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
         ColorSequenceKeypoint.new(1, Theme.Accent)
     })
     gradient.Offset = Vector2.new(-1, 0)
@@ -154,7 +154,7 @@ end
 
 function Ui:CreateWindow(Config)
     Config = Config or {}
-    local Title = Config.Title or "dihware"
+    local Title = Config.Title and string.upper(Config.Title) or "DIHWARE"
 
     Ui:Unload()
 
@@ -172,44 +172,146 @@ function Ui:CreateWindow(Config)
         ClipsDescendants = true, ZIndex = 1
     })
     Create("UICorner", { Parent = MainFrame, CornerRadius = UDim.new(0, 10) })
-    
-    local ResizeHandle = Create("TextButton", {
-        Name = "ResizeHandle", Parent = MainFrame,
-        Size = UDim2.new(0, 24, 0, 24), Position = UDim2.new(1, 0, 1, 0),
-        AnchorPoint = Vector2.new(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 100
+
+    local BottomSectionHeight = 30
+    local BottomResizeHeight = 6
+    local BottomTotalHeight = BottomSectionHeight + BottomResizeHeight + 1
+
+    local BottomArea = Create("Frame", {
+        Name = "BottomArea", Parent = MainFrame,
+        Size = UDim2.new(1, 0, 0, BottomSectionHeight), AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 20
     })
     
-    for i = 1, 3 do
-        Create("Frame", {
-            Parent = ResizeHandle, Size = UDim2.new(0, 4 + (i * 3), 0, 2),
-            Position = UDim2.new(1, -6, 1, -4 - (i * 4)), AnchorPoint = Vector2.new(1, 1),
-            BackgroundColor3 = Theme.TextMuted, BorderSizePixel = 0, ZIndex = 101
-        })
-    end
+    Create("UICorner", { Parent = BottomArea, CornerRadius = UDim.new(0, 10) })
+    
+    Create("Frame", {
+        Name = "BottomAreaTopFiller", Parent = BottomArea,
+        Size = UDim2.new(1, 0, 0, 15), AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 20
+    })
+
+    local BottomResizeBar = Create("Frame", {
+        Name = "BottomResizeBar", Parent = MainFrame,
+        Size = UDim2.new(1, 0, 0, BottomResizeHeight), AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, -BottomSectionHeight),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 21
+    })
+
+    local BottomSeparator = Create("Frame", {
+        Name = "BottomSeparator", Parent = MainFrame,
+        Size = UDim2.new(1, 0, 0, 1), AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, -(BottomSectionHeight + BottomResizeHeight)),
+        BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 22
+    })
+
+    local UptimeLabel = Create("TextLabel", {
+        Parent = BottomArea, Size = UDim2.new(0, 100, 1, 0), Position = UDim2.new(0, 15, 0, 0),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Code, TextSize = 12, TextColor3 = Theme.TextMuted, Text = "00:00:00", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21
+    })
+
+    local StartTime = tick()
+    RunService.RenderStepped:Connect(function()
+        local uptime = tick() - StartTime
+        local hours = math.floor(uptime / 3600)
+        local mins = math.floor((uptime % 3600) / 60)
+        local secs = math.floor(uptime % 60)
+        UptimeLabel.Text = string.format("%02d:%02d:%02d", hours, mins, secs)
+    end)
 
     local draggingResize = false
-    local resizeStartPos, resizeStartSize
+    local dragEdge = ""
+    local dragStartMouse
+    local dragStartSize
+    local dragStartPos
 
-    ResizeHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            draggingResize = true
-            resizeStartPos = input.Position
-            resizeStartSize = MainFrame.AbsoluteSize
-        end
-    end)
+    local function setupResizeHitbox(name, size, pos, edge)
+        local btn = Create("TextButton", {
+            Name = "Resize_" .. name,
+            Parent = MainFrame,
+            Size = size,
+            Position = pos,
+            BackgroundTransparency = 1,
+            Text = "",
+            ZIndex = 1000,
+            AutoButtonColor = false
+        })
+
+        btn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                draggingResize = true
+                dragEdge = edge
+                dragStartMouse = input.Position
+                dragStartSize = MainFrame.AbsoluteSize
+                dragStartPos = MainFrame.Position
+            end
+        end)
+    end
+
+    setupResizeHitbox("T", UDim2.new(1, -12, 0, 6), UDim2.new(0, 6, 0, 0), "T")
+    setupResizeHitbox("B", UDim2.new(1, -12, 0, 6), UDim2.new(0, 6, 1, -6), "B")
+    setupResizeHitbox("L", UDim2.new(0, 6, 1, -12), UDim2.new(0, 0, 0, 6), "L")
+    setupResizeHitbox("R", UDim2.new(0, 6, 1, -12), UDim2.new(1, -6, 0, 6), "R")
+    setupResizeHitbox("TL", UDim2.new(0, 6, 0, 6), UDim2.new(0, 0, 0, 0), "TL")
+    setupResizeHitbox("TR", UDim2.new(0, 6, 0, 6), UDim2.new(1, -6, 0, 0), "TR")
+    setupResizeHitbox("BL", UDim2.new(0, 6, 0, 6), UDim2.new(0, 0, 1, -6), "BL")
+    setupResizeHitbox("BR", UDim2.new(0, 6, 0, 6), UDim2.new(1, -6, 1, -6), "BR")
 
     UserInputService.InputChanged:Connect(function(input)
         if draggingResize and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - resizeStartPos
-            local newWidth = math.clamp(resizeStartSize.X + delta.X, 450, 1200)
-            local newHeight = math.clamp(resizeStartSize.Y + delta.Y, 350, 900)
+            local delta = input.Position - dragStartMouse
+            local newWidth = dragStartSize.X
+            local newHeight = dragStartSize.Y
+            local newPosX = dragStartPos.X.Offset
+            local newPosY = dragStartPos.Y.Offset
+
+            local minWidth, minHeight = 450, 350
+            local maxWidth, maxHeight = 1200, 900
+
+            if string.find(dragEdge, "R") then
+                newWidth = math.clamp(dragStartSize.X + delta.X, minWidth, maxWidth)
+            elseif string.find(dragEdge, "L") then
+                local possibleWidth = dragStartSize.X - delta.X
+                if possibleWidth >= minWidth and possibleWidth <= maxWidth then
+                    newWidth = possibleWidth
+                    newPosX = dragStartPos.X.Offset + delta.X
+                elseif possibleWidth < minWidth then
+                    newWidth = minWidth
+                    newPosX = dragStartPos.X.Offset + (dragStartSize.X - minWidth)
+                elseif possibleWidth > maxWidth then
+                    newWidth = maxWidth
+                    newPosX = dragStartPos.X.Offset - (maxWidth - dragStartSize.X)
+                end
+            end
+
+            if string.find(dragEdge, "B") then
+                newHeight = math.clamp(dragStartSize.Y + delta.Y, minHeight, maxHeight)
+            elseif string.find(dragEdge, "T") then
+                local possibleHeight = dragStartSize.Y - delta.Y
+                if possibleHeight >= minHeight and possibleHeight <= maxHeight then
+                    newHeight = possibleHeight
+                    newPosY = dragStartPos.Y.Offset + delta.Y
+                elseif possibleHeight < minHeight then
+                    newHeight = minHeight
+                    newPosY = dragStartPos.Y.Offset + (dragStartSize.Y - minHeight)
+                elseif possibleHeight > maxHeight then
+                    newHeight = maxHeight
+                    newPosY = dragStartPos.Y.Offset - (maxHeight - dragStartSize.Y)
+                end
+            end
+
             MainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+            MainFrame.Position = UDim2.new(dragStartPos.X.Scale, newPosX, dragStartPos.Y.Scale, newPosY)
         end
     end)
 
     UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             draggingResize = false
+            dragEdge = ""
         end
     end)
 
@@ -222,7 +324,7 @@ function Ui:CreateWindow(Config)
     local LoadingTitle = Create("TextLabel", {
         Parent = LoadingOverlay, Size = UDim2.new(1, 0, 0, 40), AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, -15), BackgroundTransparency = 1,
-        Font = CurrentFont, TextSize = 28, TextColor3 = Color3.new(1, 1, 1), Text = Capitalize(Title),
+        Font = CurrentFont, TextSize = 28, TextColor3 = Color3.new(1, 1, 1), Text = Title,
         ZIndex = 10000, TextTransparency = 1
     })
     
@@ -282,14 +384,21 @@ function Ui:CreateWindow(Config)
 
     local Header = Create("Frame", {
         Name = "Header", Parent = MainFrame,
-        Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, ZIndex = 10
+        Size = UDim2.new(1, 0, 0, 60), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 10
+    })
+    Create("UICorner", { Parent = Header, CornerRadius = UDim.new(0, 10) })
+    Create("Frame", {
+        Name = "HeaderBottomFiller", Parent = Header,
+        Size = UDim2.new(1, 0, 0, 15), AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 10
     })
     MakeDraggable(Header, MainFrame)
 
     local TitleLabel = Create("TextLabel", {
         Parent = Header, Size = UDim2.new(0, 0, 1, 0), Position = UDim2.new(0, 20, 0, 0),
         BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11,
-        Font = CurrentFont, TextSize = 15, TextColor3 = Color3.new(1, 1, 1), Text = Capitalize(Title),
+        Font = CurrentFont, TextSize = 15, TextColor3 = Color3.new(1, 1, 1), Text = Title,
         AutomaticSize = Enum.AutomaticSize.X
     })
     
@@ -334,17 +443,17 @@ function Ui:CreateWindow(Config)
 
     local ContentContainer = Create("Frame", {
         Name = "Content", Parent = MainFrame,
-        Size = UDim2.new(1, -40, 1, -145), Position = UDim2.new(0, 20, 0, 130), BackgroundTransparency = 1, ZIndex = 5
+        Size = UDim2.new(1, -40, 1, -182), Position = UDim2.new(0, 20, 0, 130), BackgroundTransparency = 1, ZIndex = 5
     })
 
     local NotificationContainer = Create("Frame", {
         Name = "NotificationContainer", Parent = ScreenGui, Size = UDim2.new(0, 400, 1, -40),
-        Position = UDim2.new(0, 15, 0, 20), AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(1, -15, 0, 20), AnchorPoint = Vector2.new(1, 0),
         BackgroundTransparency = 1, ZIndex = 5000
     })
     Create("UIListLayout", {
         Parent = NotificationContainer, SortOrder = 2,
-        VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right,
         Padding = UDim.new(0, 10)
     })
 
@@ -523,6 +632,9 @@ function Ui:CreateWindow(Config)
             if obj.Container.Visible then
                 TweenService:Create(obj.Container, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, 0)}):Play()
                 TweenService:Create(obj.Frame, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, 60)}):Play()
+                if obj.TitleLabel then
+                    TweenService:Create(obj.TitleLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {TextColor3 = Theme.TextMuted}):Play()
+                end
                 obj.Chevron.Rotation = 0
                 task.delay(0.2, function() obj.Container.Visible = false end)
             end
@@ -698,17 +810,9 @@ function Ui:CreateWindow(Config)
         })
 
         local IconData = Icons[IconId]
-        if IconData then
-            TabIcon.Image = IconData.Image
-            TabIcon.ImageRectOffset = IconData.ImageRectOffset
-            TabIcon.ImageRectSize = IconData.ImageRectSize
-        else
-            local formattedIcon = tostring(IconId)
-            if formattedIcon ~= "" and not string.match(formattedIcon, "^rbxasset") then
-                formattedIcon = "rbxassetid://" .. formattedIcon
-            end
-            TabIcon.Image = formattedIcon
-        end
+        TabIcon.Image = IconData.Image
+        TabIcon.ImageRectOffset = IconData.ImageRectOffset
+        TabIcon.ImageRectSize = IconData.ImageRectSize
         
         local BtnText = Create("TextLabel", {
             Parent = TabBtn, Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 34, 0, 0), BackgroundTransparency = 1, ZIndex = 2,
@@ -794,9 +898,9 @@ function Ui:CreateWindow(Config)
                 local LabelContainer = Create("Frame", { Parent = ToggleFrame, Size = UDim2.new(1, -60, 1, 0), BackgroundTransparency = 1, ZIndex = 5 })
                 Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
                 
-                Create("TextLabel", {
+                local TitleLabel = Create("TextLabel", {
                     Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5, LayoutOrder = 1,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(TglName), AutomaticSize = Enum.AutomaticSize.X
+                    Font = CurrentFont, TextSize = 13, TextColor3 = ManualState and Color3.new(1, 1, 1) or Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(TglName), AutomaticSize = Enum.AutomaticSize.X
                 })
 
                 local KeyIcon = Create("ImageLabel", {
@@ -804,13 +908,9 @@ function Ui:CreateWindow(Config)
                     ImageColor3 = Theme.Accent, Visible = false
                 })
                 local kIconData = Icons["keyboard"]
-                if kIconData then
-                    KeyIcon.Image = kIconData.Image
-                    KeyIcon.ImageRectOffset = kIconData.ImageRectOffset
-                    KeyIcon.ImageRectSize = kIconData.ImageRectSize
-                else
-                    KeyIcon.Image = "rbxassetid://14264620023"
-                end
+                KeyIcon.Image = kIconData.Image
+                KeyIcon.ImageRectOffset = kIconData.ImageRectOffset
+                KeyIcon.ImageRectSize = kIconData.ImageRectSize
 
                 if Tooltip then
                     local TipIcon = Create("ImageLabel", {
@@ -818,11 +918,9 @@ function Ui:CreateWindow(Config)
                         ImageColor3 = Theme.TextMuted, Active = true
                     })
                     local infoData = Icons["info"]
-                    if infoData then
-                        TipIcon.Image = infoData.Image
-                        TipIcon.ImageRectOffset = infoData.ImageRectOffset
-                        TipIcon.ImageRectSize = infoData.ImageRectSize
-                    end
+                    TipIcon.Image = infoData.Image
+                    TipIcon.ImageRectOffset = infoData.ImageRectOffset
+                    TipIcon.ImageRectSize = infoData.ImageRectSize
                     TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
                     TipIcon.MouseLeave:Connect(function() HideTooltip() end)
                 end
@@ -850,6 +948,8 @@ function Ui:CreateWindow(Config)
                         Position = ManualState and UDim2.new(1, -17, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
                         BackgroundColor3 = ManualState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
                     }):Play()
+
+                    TweenService:Create(TitleLabel, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {TextColor3 = newState and Color3.new(1, 1, 1) or Theme.TextMuted}):Play()
 
                     KeyIcon.Visible = KeybindState
 
@@ -925,7 +1025,7 @@ function Ui:CreateWindow(Config)
                 local LabelContainer = Create("Frame", { Parent = DropFrame, Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, ZIndex = 5 })
                 Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
                 
-                Create("TextLabel", {
+                local TitleLabel = Create("TextLabel", {
                     Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5, LayoutOrder = 1,
                     Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(DropName), AutomaticSize = Enum.AutomaticSize.X
                 })
@@ -936,11 +1036,9 @@ function Ui:CreateWindow(Config)
                         ImageColor3 = Theme.TextMuted, Active = true
                     })
                     local infoData = Icons["info"]
-                    if infoData then
-                        TipIcon.Image = infoData.Image
-                        TipIcon.ImageRectOffset = infoData.ImageRectOffset
-                        TipIcon.ImageRectSize = infoData.ImageRectSize
-                    end
+                    TipIcon.Image = infoData.Image
+                    TipIcon.ImageRectOffset = infoData.ImageRectOffset
+                    TipIcon.ImageRectSize = infoData.ImageRectSize
                     TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
                     TipIcon.MouseLeave:Connect(function() HideTooltip() end)
                 end
@@ -965,7 +1063,7 @@ function Ui:CreateWindow(Config)
                 Create("UIStroke", { Parent = ListContainer, Color = Theme.Divider, Thickness = 1 })
                 local ListLayout = Create("UIListLayout", { Parent = ListContainer, SortOrder = 2 })
                 
-                table.insert(WindowObj.DropdownContainers, {Container = ListContainer, Frame = DropFrame, Btn = MainBtn, Chevron = Chevron})
+                table.insert(WindowObj.DropdownContainers, {Container = ListContainer, Frame = DropFrame, Btn = MainBtn, Chevron = Chevron, TitleLabel = TitleLabel})
 
                 local function BuildOptions(optTable)
                     for _, child in ipairs(ListContainer:GetChildren()) do
@@ -977,7 +1075,7 @@ function Ui:CreateWindow(Config)
                             Parent = ListContainer, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1, ZIndex = 7,
                             Font = CurrentFont, TextSize = 12, TextColor3 = isSelected and Theme.Accent or Theme.TextMuted, Text = Capitalize(option)
                         })
-                        OptBtn.MouseEnter:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = Theme.Accent}):Play() end)
+                        OptBtn.MouseEnter:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = Color3.new(1, 1, 1)}):Play() end)
                         OptBtn.MouseLeave:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = (option == CurrentValue) and Theme.Accent or Theme.TextMuted}):Play() end)
                         OptBtn.MouseButton1Click:Connect(function()
                             WindowObj.Elements[Flag].SetValue(option)
@@ -1011,6 +1109,7 @@ function Ui:CreateWindow(Config)
                         ListContainer.Size = UDim2.new(1, 0, 0, 0)
                         ListContainer.Visible = true
                         
+                        TweenService:Create(TitleLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextColor3 = Color3.new(1, 1, 1)}):Play()
                         TweenService:Create(ListContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, calcHeight)}):Play()
                         TweenService:Create(DropFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, 60 + calcHeight + 5)}):Play()
                         Chevron.Rotation = 180
@@ -1048,7 +1147,7 @@ function Ui:CreateWindow(Config)
                 local LabelContainer = Create("Frame", { Parent = SliderFrame, Size = UDim2.new(0.5, 0, 0, 20), Position = UDim2.new(0, 0, 0, 5), BackgroundTransparency = 1, ZIndex = 5 })
                 Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
                 
-                Create("TextLabel", {
+                local TitleLabel = Create("TextLabel", {
                     Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5, LayoutOrder = 1,
                     Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(SldName), AutomaticSize = Enum.AutomaticSize.X
                 })
@@ -1059,11 +1158,9 @@ function Ui:CreateWindow(Config)
                         ImageColor3 = Theme.TextMuted, Active = true
                     })
                     local infoData = Icons["info"]
-                    if infoData then
-                        TipIcon.Image = infoData.Image
-                        TipIcon.ImageRectOffset = infoData.ImageRectOffset
-                        TipIcon.ImageRectSize = infoData.ImageRectSize
-                    end
+                    TipIcon.Image = infoData.Image
+                    TipIcon.ImageRectOffset = infoData.ImageRectOffset
+                    TipIcon.ImageRectSize = infoData.ImageRectSize
                     TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
                     TipIcon.MouseLeave:Connect(function() HideTooltip() end)
                 end
@@ -1111,6 +1208,7 @@ function Ui:CreateWindow(Config)
 
                 DragBtn.InputBegan:Connect(function(Input)
                     if Input.UserInputType == Enum.UserInputType.MouseButton1 then 
+                        TweenService:Create(TitleLabel, TweenInfo.new(0.2), {TextColor3 = Color3.new(1, 1, 1)}):Play()
                         UpdateSlider(Input)
                         TweenService:Create(Knob, TweenInfo.new(0.2), {Size = UDim2.new(0, 16, 0, 16)}):Play()
                         Connection = UserInputService.InputChanged:Connect(function(MoveInput)
@@ -1120,6 +1218,7 @@ function Ui:CreateWindow(Config)
                 end)
                 DragBtn.InputEnded:Connect(function(Input)
                     if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        TweenService:Create(TitleLabel, TweenInfo.new(0.2), {TextColor3 = Theme.TextMuted}):Play()
                         if Connection then Connection:Disconnect() end
                         TweenService:Create(Knob, TweenInfo.new(0.2), {Size = UDim2.new(0, 12, 0, 12)}):Play()
                     end
@@ -1138,9 +1237,11 @@ function Ui:CreateWindow(Config)
                 local ButtonFrame = Create("Frame", { Parent = Section, Size = UDim2.new(1, 0, 0, 45), BackgroundTransparency = 1, ZIndex = 4 })
                 Create("UIPadding", { Parent = ButtonFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
 
+                local BaseTextColor = Selected and Theme.Accent or (Danger and Theme.Danger or Theme.Text)
+
                 local Btn = Create("TextButton", {
                     Parent = ButtonFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.Element, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Selected and Theme.Accent or (Danger and Theme.Danger or Theme.Text), Text = Capitalize(BtnName), AutoButtonColor = false
+                    Font = CurrentFont, TextSize = 13, TextColor3 = BaseTextColor, Text = Capitalize(BtnName), AutoButtonColor = false
                 })
                 Create("UICorner", { Parent = Btn, CornerRadius = UDim.new(0, 6) })
 
@@ -1152,8 +1253,22 @@ function Ui:CreateWindow(Config)
                     Create("UICorner", { Parent = Indicator, CornerRadius = UDim.new(0, 4) })
                 end
 
+                Btn.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        TweenService:Create(Btn, TweenInfo.new(0.1), {TextColor3 = Color3.new(1, 1, 1)}):Play()
+                    end
+                end)
+                Btn.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        TweenService:Create(Btn, TweenInfo.new(0.1), {TextColor3 = BaseTextColor}):Play()
+                    end
+                end)
+
                 Btn.MouseEnter:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ElementHover}):Play() end)
-                Btn.MouseLeave:Connect(function() TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Element}):Play() end)
+                Btn.MouseLeave:Connect(function()
+                    TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Element}):Play()
+                    TweenService:Create(Btn, TweenInfo.new(0.1), {TextColor3 = BaseTextColor}):Play()
+                end)
                 Btn.MouseButton1Click:Connect(function()
                     local clickTween = TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(0.98, 0, 0.9, 0), Position = UDim2.new(0.01, 0, 0.05, 0)})
                     clickTween:Play()
@@ -1201,6 +1316,7 @@ function Ui:CreateWindow(Config)
                 Hitbox.MouseButton1Click:Connect(function()
                     Binding = true
                     KeyIndicatorText.Text = "..."
+                    TweenService:Create(KeyNameLabel, TweenInfo.new(0.2), {TextColor3 = Color3.new(1, 1, 1)}):Play()
                     TweenService:Create(KeyIndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.TextMuted}):Play()
                     TweenService:Create(KeyIndicatorText, TweenInfo.new(0.2), {TextColor3 = Theme.Background}):Play()
                 end)
@@ -1210,6 +1326,7 @@ function Ui:CreateWindow(Config)
                         Binding = false
                         CurrentKey = input.KeyCode
                         KeyIndicatorText.Text = Capitalize(CurrentKey.Name)
+                        TweenService:Create(KeyNameLabel, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
                         TweenService:Create(KeyIndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Panel}):Play()
                         TweenService:Create(KeyIndicatorText, TweenInfo.new(0.2), {TextColor3 = Theme.TextMuted}):Play()
                         Callback(CurrentKey)
@@ -1233,7 +1350,13 @@ function Ui:CreateWindow(Config)
                 Create("UICorner", { Parent = Box, CornerRadius = UDim.new(0, 6) })
                 Create("UIStroke", { Parent = Box, Color = Theme.Element, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
 
-                Box.FocusLost:Connect(function() Callback(Box.Text) end)
+                Box.Focused:Connect(function()
+                    TweenService:Create(Box, TweenInfo.new(0.2), {TextColor3 = Color3.new(1, 1, 1)}):Play()
+                end)
+                Box.FocusLost:Connect(function()
+                    TweenService:Create(Box, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
+                    Callback(Box.Text)
+                end)
             end
 
             return Elements
@@ -1246,12 +1369,12 @@ function Ui:CreateWindow(Config)
             if name == TabName then
                 tab.Page.Visible = true
                 TweenService:Create(tab.Button, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, 130, 1, -12)}):Play()
-                TweenService:Create(tab.Text, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 0, TextColor3 = Theme.Text}):Play()
+                TweenService:Create(tab.Text, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 0, TextColor3 = Color3.new(1, 1, 1)}):Play()
                 TweenService:Create(tab.Icon, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {ImageColor3 = Theme.Accent, Position = UDim2.new(0, 20, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5)}):Play()
             else
                 tab.Page.Visible = false
                 TweenService:Create(tab.Button, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, 44, 1, -12)}):Play()
-                TweenService:Create(tab.Text, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 1}):Play()
+                TweenService:Create(tab.Text, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {TextTransparency = 1, TextColor3 = Theme.TextMuted}):Play()
                 TweenService:Create(tab.Icon, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {ImageColor3 = Theme.TextMuted, Position = UDim2.new(0.5, 0, 0.5, 0), AnchorPoint = Vector2.new(0.5, 0.5)}):Play()
             end
         end
