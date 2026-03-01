@@ -826,7 +826,7 @@ function Ui:CreateWindow(Config)
             return
         end
         for flag, value in pairs(decoded) do
-            if self.Elements[flag] then
+            if self.Elements[flag] and self.Elements[flag].SetValue then
                 pcall(function() self.Elements[flag].SetValue(value) end)
             end
         end
@@ -1358,9 +1358,12 @@ function Ui:CreateWindow(Config)
             function Elements:AddKeybind(Config)
                 elementCount = elementCount + 1
                 local KeyName = Config.Name or "Keybind"
+                local Flag = Config.Flag or KeyName
                 local DefaultKey = Config.Default or Enum.KeyCode.RightShift
                 local Callback = Config.Callback or function() end
                 local CurrentKey = DefaultKey
+
+                WindowObj.Flags[Flag] = CurrentKey.Name
 
                 local KeybindFrame = Create("Frame", { Parent = Section, Size = UDim2.new(1, 0, 0, 45), BackgroundTransparency = 1, ZIndex = 4 })
                 Create("UIPadding", { Parent = KeybindFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
@@ -1406,15 +1409,30 @@ function Ui:CreateWindow(Config)
                         TweenService:Create(KeyNameLabel, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
                         TweenService:Create(KeyIndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Panel}):Play()
                         TweenService:Create(KeyIndicatorText, TweenInfo.new(0.2), {TextColor3 = Theme.TextMuted}):Play()
+                        WindowObj.Flags[Flag] = CurrentKey.Name
                         Callback(CurrentKey)
                     end
                 end)
+
+                local function SetValue(val)
+                    local key = Enum.KeyCode[val]
+                    if not key then return end
+                    CurrentKey = key
+                    WindowObj.Flags[Flag] = CurrentKey.Name
+                    KeyIndicatorText.Text = Capitalize(CurrentKey.Name)
+                    Callback(CurrentKey)
+                end
+
+                WindowObj.Elements[Flag] = { Type = "Keybind", SetValue = SetValue }
             end
 
             function Elements:AddTextBox(Config)
                 elementCount = elementCount + 1
                 local TxtName = Config.Name or "Enter text..."
+                local Flag = Config.Flag or TxtName
                 local Callback = Config.Callback or function() end
+
+                WindowObj.Flags[Flag] = ""
 
                 local TextBoxFrame = Create("Frame", { Parent = Section, Size = UDim2.new(1, 0, 0, 45), BackgroundTransparency = 1, ZIndex = 4 })
                 Create("UIPadding", { Parent = TextBoxFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
@@ -1432,8 +1450,17 @@ function Ui:CreateWindow(Config)
                 end)
                 Box.FocusLost:Connect(function()
                     TweenService:Create(Box, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
+                    WindowObj.Flags[Flag] = Box.Text
                     Callback(Box.Text)
                 end)
+
+                local function SetValue(val)
+                    Box.Text = val
+                    WindowObj.Flags[Flag] = val
+                    Callback(val)
+                end
+
+                WindowObj.Elements[Flag] = { Type = "TextBox", SetValue = SetValue }
             end
 
             return Elements
@@ -1594,4 +1621,5 @@ function Ui:CreateWindow(Config)
 
     return WindowObj
 end
+
 return Ui
