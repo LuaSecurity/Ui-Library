@@ -1150,10 +1150,10 @@ function Ui:CreateWindow(Config)
                         local isSelected = (option == CurrentValue)
                         local OptBtn = Create("TextButton", {
                             Parent = ListContainer, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1, ZIndex = 7,
-                            Font = CurrentFont, TextSize = 12, TextColor3 = isSelected and Theme.Accent or Theme.TextMuted, Text = Capitalize(option)
+                            Font = CurrentFont, TextSize = 12, TextColor3 = isSelected and Color3.new(1, 1, 1) or Theme.TextMuted, Text = Capitalize(option)
                         })
                         OptBtn.MouseEnter:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = Color3.new(1, 1, 1)}):Play() end)
-                        OptBtn.MouseLeave:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = (option == CurrentValue) and Theme.Accent or Theme.TextMuted}):Play() end)
+                        OptBtn.MouseLeave:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = (option == CurrentValue) and Color3.new(1, 1, 1) or Theme.TextMuted}):Play() end)
                         OptBtn.MouseButton1Click:Connect(function()
                             WindowObj.Elements[Flag].SetValue(option)
                             CloseMenus()
@@ -1594,5 +1594,4 @@ function Ui:CreateWindow(Config)
 
     return WindowObj
 end
-
 return Ui
