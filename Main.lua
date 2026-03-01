@@ -5,8 +5,18 @@ local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TextService = game:GetService("TextService")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
+
+local Username = "anonymous_800"
+if LocalPlayer then
+    if LocalPlayer.DisplayName and LocalPlayer.DisplayName ~= LocalPlayer.Name then
+        Username = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
+    else
+        Username = LocalPlayer.Name
+    end
+end
 
 local Ui = {}
 
@@ -66,21 +76,21 @@ local Theme = {
     Background = Color3.fromRGB(13, 14, 18),
     Panel = Color3.fromRGB(18, 19, 25),
     Element = Color3.fromRGB(24, 25, 33),
-    ElementHover = Color3.fromRGB(20, 21, 28), -- Darker than Element
+    ElementHover = Color3.fromRGB(20, 21, 28),
     Accent = Color3.fromRGB(0, 110, 255),
-    Text = Color3.fromRGB(220, 220, 225),
-    TextMuted = Color3.fromRGB(140, 140, 145),
-    TextDark = Color3.fromRGB(100, 100, 105),
+    Text = Color3.fromRGB(80, 75, 85),
+    TextMuted = Color3.fromRGB(90, 95, 105),
+    TextDark = Color3.fromRGB(90, 95, 105),
     Divider = Color3.fromRGB(28, 29, 38),
     Danger = Color3.fromRGB(255, 75, 75)
 }
 
 local NotificationGradients = {
-    white = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(230, 230, 230)), ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 120, 120))}),
-    red = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 100)), ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 20, 20))}),
-    blue = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 170, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 70, 180))}),
-    green = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 255, 100)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 150, 20))}),
-    yellow = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 100)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 180, 20))})
+    white = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 180, 180))}),
+    red = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 75, 75)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 30, 30))}),
+    blue = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 110, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 60, 180))}),
+    green = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 200, 80)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 140, 50))}),
+    yellow = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 210, 50)), ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 150, 20))})
 }
 
 local CurrentFont = Enum.Font.GothamBold
@@ -119,6 +129,25 @@ local function MakeDraggable(topbarobject, object)
     end)
 end
 
+local function AnimateSeamlessGradient(gradient)
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Theme.Accent),
+        ColorSequenceKeypoint.new(0.5, Color3.new(0.4, 0.45, 0.55)),
+        ColorSequenceKeypoint.new(1, Theme.Accent)
+    })
+    gradient.Offset = Vector2.new(-1, 0)
+    local tween = TweenService:Create(gradient, TweenInfo.new(2.5, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false), {Offset = Vector2.new(1, 0)})
+    tween:Play()
+    return tween
+end
+
+local function Capitalize(str)
+    if type(str) ~= "string" then return tostring(str) end
+    return string.gsub(str, "(%a)([%w_']*)", function(f, r)
+        return string.upper(f) .. r
+    end)
+end
+
 function Ui:Unload()
     if CoreGui:FindFirstChild("dihwareUI") then CoreGui.dihwareUI:Destroy() end
 end
@@ -126,7 +155,6 @@ end
 function Ui:CreateWindow(Config)
     Config = Config or {}
     local Title = Config.Title or "dihware"
-    local Username = LocalPlayer and LocalPlayer.DisplayName or "anonymous_800"
 
     Ui:Unload()
 
@@ -144,15 +172,13 @@ function Ui:CreateWindow(Config)
         ClipsDescendants = true, ZIndex = 1
     })
     Create("UICorner", { Parent = MainFrame, CornerRadius = UDim.new(0, 10) })
-    Create("UIStroke", { Parent = MainFrame, Color = Color3.new(0, 0, 0), Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-
+    
     local ResizeHandle = Create("TextButton", {
         Name = "ResizeHandle", Parent = MainFrame,
         Size = UDim2.new(0, 24, 0, 24), Position = UDim2.new(1, 0, 1, 0),
         AnchorPoint = Vector2.new(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 100
     })
     
-    -- Custom Resize Grip icon for a better look
     for i = 1, 3 do
         Create("Frame", {
             Parent = ResizeHandle, Size = UDim2.new(0, 4 + (i * 3), 0, 2),
@@ -193,40 +219,56 @@ function Ui:CreateWindow(Config)
     })
     Create("UICorner", { Parent = LoadingOverlay, CornerRadius = UDim.new(0, 10) })
     
-    local LoadingSpinner = Create("Frame", {
-        Parent = LoadingOverlay, Size = UDim2.new(0, 40, 0, 40), AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, -20), BackgroundTransparency = 1, ZIndex = 10000
+    local LoadingTitle = Create("TextLabel", {
+        Parent = LoadingOverlay, Size = UDim2.new(1, 0, 0, 40), AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, -15), BackgroundTransparency = 1,
+        Font = CurrentFont, TextSize = 28, TextColor3 = Color3.new(1, 1, 1), Text = Capitalize(Title),
+        ZIndex = 10000, TextTransparency = 1
     })
-    local SpinGradient = Create("UIGradient", {
-        Parent = LoadingSpinner, Rotation = 0,
-        Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(1, Theme.Background)})
-    })
-    Create("UIStroke", { Parent = LoadingSpinner, Color = Color3.new(1,1,1), Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
-    Create("UICorner", { Parent = LoadingSpinner, CornerRadius = UDim.new(1, 0) })
+    
+    local LoadTitleGradient = Create("UIGradient", { Parent = LoadingTitle })
+    AnimateSeamlessGradient(LoadTitleGradient)
 
-    local LoadingText = Create("TextLabel", {
-        Parent = LoadingOverlay, Size = UDim2.new(1, 0, 0, 30), Position = UDim2.new(0, 0, 0.5, 20),
-        BackgroundTransparency = 1, Text = Title, TextColor3 = Theme.Text,
-        Font = CurrentFont, TextSize = 18, ZIndex = 10000
+    local LoadingSubtitle = Create("TextLabel", {
+        Parent = LoadingOverlay, Size = UDim2.new(1, 0, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 10), BackgroundTransparency = 1,
+        Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Theme.TextMuted, Text = Capitalize("Initializing environment..."),
+        ZIndex = 10000, TextTransparency = 1
     })
 
-    local spinConn
-    spinConn = RunService.RenderStepped:Connect(function()
-        LoadingSpinner.Rotation = LoadingSpinner.Rotation + 4
-    end)
+    local LoadingBarBg = Create("Frame", {
+        Parent = LoadingOverlay, Size = UDim2.new(0, 220, 0, 3), AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 35), BackgroundColor3 = Theme.Element, ZIndex = 10000, BackgroundTransparency = 1
+    })
+    Create("UICorner", { Parent = LoadingBarBg, CornerRadius = UDim.new(1, 0) })
+
+    local LoadingBarFill = Create("Frame", {
+        Parent = LoadingBarBg, Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Theme.Accent, ZIndex = 10001, BackgroundTransparency = 1
+    })
+    Create("UICorner", { Parent = LoadingBarFill, CornerRadius = UDim.new(1, 0) })
 
     task.spawn(function()
-        task.wait(1.5)
-        spinConn:Disconnect()
+        TweenService:Create(LoadingTitle, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {TextTransparency = 0, Position = UDim2.new(0.5, 0, 0.5, -25)}):Play()
+        task.wait(0.2)
+        TweenService:Create(LoadingSubtitle, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {TextTransparency = 0, Position = UDim2.new(0.5, 0, 0.5, -2)}):Play()
+        TweenService:Create(LoadingBarBg, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(LoadingBarFill, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+        
+        task.wait(0.3)
+        TweenService:Create(LoadingBarFill, TweenInfo.new(1.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(1, 0, 1, 0)}):Play()
+        task.wait(1.4)
+        
         TweenService:Create(LoadingOverlay, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(LoadingSpinner, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(LoadingSpinner.UIStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Transparency = 1}):Play()
-        TweenService:Create(LoadingText, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
+        TweenService:Create(LoadingTitle, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
+        TweenService:Create(LoadingSubtitle, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {TextTransparency = 1}):Play()
+        TweenService:Create(LoadingBarBg, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(LoadingBarFill, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {BackgroundTransparency = 1}):Play()
+        
         task.wait(0.4)
         LoadingOverlay:Destroy()
         
         pcall(function()
-            local url = "https://cdn.discordapp.com/attachments/1455351271740539145/1476690209805570261/gta_noti_sound.mp3?ex=69a20a6d&is=69a0b8ed&hm=a0f07d67744f4d34e996864b9f8f4e6536a4930a1c43eea6ea528205f0aa3fae&"
+            local url = "https://cdn.discordapp.com/attachments/1455351271740539145/1476690209805570261/gta_noti_sound.mp3?ex=69a4ad6d&is=69a35bed&hm=0b9c51dccbc8abf7a5c486f7d73d7e2964809ae66c781bbd4f2932750b927c10&"
             local file = "dihware_startup.mp3"
             if not isfile(file) then writefile(file, game:HttpGet(url)) end
             local snd = Instance.new("Sound")
@@ -240,23 +282,19 @@ function Ui:CreateWindow(Config)
 
     local Header = Create("Frame", {
         Name = "Header", Parent = MainFrame,
-        Size = UDim2.new(1, 0, 0, 50), BackgroundTransparency = 1, ZIndex = 10
+        Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, ZIndex = 10
     })
     MakeDraggable(Header, MainFrame)
 
     local TitleLabel = Create("TextLabel", {
         Parent = Header, Size = UDim2.new(0, 0, 1, 0), Position = UDim2.new(0, 20, 0, 0),
         BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11,
-        Font = CurrentFont, TextSize = 15, TextColor3 = Color3.new(1, 1, 1), Text = Title,
+        Font = CurrentFont, TextSize = 15, TextColor3 = Color3.new(1, 1, 1), Text = Capitalize(Title),
         AutomaticSize = Enum.AutomaticSize.X
     })
-    Create("UIGradient", {
-        Parent = TitleLabel,
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Theme.Accent),
-            ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
-        })
-    })
+    
+    local MainTitleGradient = Create("UIGradient", { Parent = TitleLabel })
+    AnimateSeamlessGradient(MainTitleGradient)
 
     Create("TextLabel", {
         Parent = Header, Size = UDim2.new(0, 150, 1, 0), Position = UDim2.new(1, -165, 0, 0),
@@ -264,11 +302,11 @@ function Ui:CreateWindow(Config)
         Font = CurrentFont, TextSize = 12, TextColor3 = Theme.TextDark, Text = Username
     })
 
-    Create("Frame", { Parent = MainFrame, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 50), BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 10 })
+    Create("Frame", { Parent = MainFrame, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 60), BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 10 })
 
     local TabBar = Create("Frame", {
         Name = "TabBar", Parent = MainFrame,
-        Size = UDim2.new(1, 0, 0, 50), Position = UDim2.new(0, 0, 0, 51),
+        Size = UDim2.new(1, 0, 0, 60), Position = UDim2.new(0, 0, 0, 61),
         BackgroundColor3 = Theme.Background, BorderSizePixel = 0, ZIndex = 10
     })
 
@@ -296,17 +334,17 @@ function Ui:CreateWindow(Config)
 
     local ContentContainer = Create("Frame", {
         Name = "Content", Parent = MainFrame,
-        Size = UDim2.new(1, -30, 1, -125), Position = UDim2.new(0, 15, 0, 110), BackgroundTransparency = 1, ZIndex = 5
+        Size = UDim2.new(1, -40, 1, -145), Position = UDim2.new(0, 20, 0, 130), BackgroundTransparency = 1, ZIndex = 5
     })
 
     local NotificationContainer = Create("Frame", {
         Name = "NotificationContainer", Parent = ScreenGui, Size = UDim2.new(0, 400, 1, -40),
-        Position = UDim2.new(1, -15, 0, 20), AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(0, 15, 0, 20), AnchorPoint = Vector2.new(0, 0),
         BackgroundTransparency = 1, ZIndex = 5000
     })
     Create("UIListLayout", {
         Parent = NotificationContainer, SortOrder = 2,
-        VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Left,
         Padding = UDim.new(0, 10)
     })
 
@@ -324,7 +362,7 @@ function Ui:CreateWindow(Config)
     end)
 
     local function ShowTooltip(text)
-        TooltipText.Text = text
+        TooltipText.Text = Capitalize(text)
         TooltipGui.Visible = true
         TooltipGui.BackgroundTransparency = 1
         TooltipText.TextTransparency = 1
@@ -351,13 +389,13 @@ function Ui:CreateWindow(Config)
 
     local CtxKeybindBtn = Create("TextButton", {
         Parent = ContextMenu, Size = UDim2.new(1, -10, 0, 30),
-        BackgroundColor3 = Theme.Element, ZIndex = 3002, Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = "None", AutoButtonColor = false
+        BackgroundColor3 = Theme.Element, ZIndex = 3002, Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = Capitalize("None"), AutoButtonColor = false
     })
     Create("UICorner", { Parent = CtxKeybindBtn, CornerRadius = UDim.new(0, 6) })
 
     local CtxModeBtn = Create("TextButton", {
         Parent = ContextMenu, Size = UDim2.new(1, -10, 0, 30),
-        BackgroundColor3 = Theme.Element, ZIndex = 3002, Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = "Toggle", AutoButtonColor = false, TextXAlignment = Enum.TextXAlignment.Left
+        BackgroundColor3 = Theme.Element, ZIndex = 3002, Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = Capitalize("Toggle"), AutoButtonColor = false, TextXAlignment = Enum.TextXAlignment.Left
     })
     Create("UICorner", { Parent = CtxModeBtn, CornerRadius = UDim.new(0, 6) })
     Create("UIPadding", { Parent = CtxModeBtn, PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) })
@@ -381,15 +419,15 @@ function Ui:CreateWindow(Config)
     for _, mode in ipairs(Modes) do
         local btn = Create("TextButton", {
             Parent = CtxModeList, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1,
-            Font = CurrentFont, TextSize = 12, TextColor3 = Theme.TextMuted, Text = mode, ZIndex = 3011
+            Font = CurrentFont, TextSize = 12, TextColor3 = Theme.TextMuted, Text = Capitalize(mode), ZIndex = 3011
         })
         btn.MouseButton1Click:Connect(function()
             if ActiveContextConfig then
                 ActiveContextConfig.Mode = mode
-                CtxModeBtn.Text = mode
+                CtxModeBtn.Text = Capitalize(mode)
                 ActiveContextConfig.UpdateSave()
                 CtxModeList.Visible = false
-                TweenService:Create(CtxChevron, TweenInfo.new(0.2), {Rotation = 0}):Play()
+                CtxChevron.Rotation = 0
             end
         end)
         btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {TextColor3 = Theme.Text}):Play() end)
@@ -408,10 +446,10 @@ function Ui:CreateWindow(Config)
             CtxModeList.Position = UDim2.new(0, CtxModeBtn.AbsolutePosition.X - ModalOverlay.AbsolutePosition.X, 0, CtxModeBtn.AbsolutePosition.Y - ModalOverlay.AbsolutePosition.Y + CtxModeBtn.AbsoluteSize.Y + 4)
             CtxModeList.Size = UDim2.new(0, CtxModeBtn.AbsoluteSize.X, 0, CtxModeListLayout.AbsoluteContentSize.Y)
             CtxModeList.Visible = true
-            TweenService:Create(CtxChevron, TweenInfo.new(0.2), {Rotation = 180}):Play()
+            CtxChevron.Rotation = 180
         else
             CtxModeList.Visible = false
-            TweenService:Create(CtxChevron, TweenInfo.new(0.2), {Rotation = 0}):Play()
+            CtxChevron.Rotation = 0
         end
     end)
 
@@ -419,7 +457,7 @@ function Ui:CreateWindow(Config)
     CtxKeybindBtn.MouseButton1Click:Connect(function()
         isBinding = true
         CtxKeybindBtn.Text = "..."
-        TweenService:Create(CtxKeybindBtn, TweenInfo.new(0.2), {TextColor3 = Theme.Accent}):Play()
+        TweenService:Create(CtxKeybindBtn, TweenInfo.new(0.2), {TextColor3 = Theme.TextMuted}):Play()
     end)
 
     UserInputService.InputBegan:Connect(function(input)
@@ -430,7 +468,7 @@ function Ui:CreateWindow(Config)
             else
                 ActiveContextConfig.Key = input.KeyCode
             end
-            CtxKeybindBtn.Text = ActiveContextConfig.Key == Enum.KeyCode.Unknown and "None" or ActiveContextConfig.Key.Name
+            CtxKeybindBtn.Text = Capitalize(ActiveContextConfig.Key == Enum.KeyCode.Unknown and "None" or ActiveContextConfig.Key.Name)
             TweenService:Create(CtxKeybindBtn, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
             ActiveContextConfig.UpdateSave()
         end
@@ -439,11 +477,11 @@ function Ui:CreateWindow(Config)
     ModalOverlay.MouseButton1Click:Connect(function()
         if CtxModeList.Visible then
             CtxModeList.Visible = false
-            TweenService:Create(CtxChevron, TweenInfo.new(0.2), {Rotation = 0}):Play()
+            CtxChevron.Rotation = 0
         else
             ModalOverlay.Visible = false
             isBinding = false
-            CtxKeybindBtn.Text = ActiveContextConfig.Key == Enum.KeyCode.Unknown and "None" or ActiveContextConfig.Key.Name
+            CtxKeybindBtn.Text = Capitalize(ActiveContextConfig.Key == Enum.KeyCode.Unknown and "None" or ActiveContextConfig.Key.Name)
             TweenService:Create(CtxKeybindBtn, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
         end
     end)
@@ -452,12 +490,11 @@ function Ui:CreateWindow(Config)
         ActiveContextConfig = config
         isBinding = false
         CtxKeybindBtn.TextColor3 = Theme.Text
-        CtxKeybindBtn.Text = config.Key == Enum.KeyCode.Unknown and "None" or config.Key.Name
-        CtxModeBtn.Text = config.Mode
+        CtxKeybindBtn.Text = Capitalize(config.Key == Enum.KeyCode.Unknown and "None" or config.Key.Name)
+        CtxModeBtn.Text = Capitalize(config.Mode)
         CtxModeList.Visible = false
-        TweenService:Create(CtxChevron, TweenInfo.new(0), {Rotation = 0}):Play()
-        
-        -- Position at mouse with boundary clamps
+        CtxChevron.Rotation = 0
+
         ContextMenu.AnchorPoint = Vector2.new(0, 0)
         local cSize = ContextMenu.AbsoluteSize
         local sSize = ScreenGui.AbsoluteSize
@@ -481,10 +518,12 @@ function Ui:CreateWindow(Config)
     local oldClose = CloseMenus
     local function CloseMenus()
         if oldClose then oldClose() end
+        CloseOverlay.Visible = false
         for _, obj in pairs(WindowObj.DropdownContainers) do
             if obj.Container.Visible then
-                TweenService:Create(obj.Container, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(0, obj.Container.AbsoluteSize.X, 0, 0)}):Play()
-                TweenService:Create(obj.Chevron, TweenInfo.new(0.2), {Rotation = 0}):Play()
+                TweenService:Create(obj.Container, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+                TweenService:Create(obj.Frame, TweenInfo.new(0.2, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, 60)}):Play()
+                obj.Chevron.Rotation = 0
                 task.delay(0.2, function() obj.Container.Visible = false end)
             end
         end
@@ -512,84 +551,112 @@ function Ui:CreateWindow(Config)
     function WindowObj:Notify(Config)
         local Content = Config.Content or Config.Title or "Notification"
         local Duration = Config.Duration or 3
-        local GradientType = Config.Type or "white"
-        local TargetGradient = NotificationGradients[GradientType] or NotificationGradients["white"]
+        local NotifType = Config.Type and string.lower(Config.Type) or "blue"
+        local CurrentGradient = NotificationGradients[NotifType] or NotificationGradients.blue
         
-        -- Get text bounds to dynamically scale the width of the notification
         local textSize = TextService:GetTextSize(Content, 12, CurrentFont, Vector2.new(9999, 20))
-        local notifWidth = math.max(200, textSize.X + 30) -- Minimum width of 200, otherwise perfectly scales with padding
+        local notifWidth = math.max(200, textSize.X + 30)
         local targetHeight = 45
 
         local NotifFrame = Create("Frame", {
-            Parent = NotificationContainer, Size = UDim2.new(0, notifWidth, 0, 0),
-            BackgroundColor3 = Theme.Background, ClipsDescendants = true, ZIndex = 5001
+            Parent = NotificationContainer, Size = UDim2.new(0, 0, 0, targetHeight),
+            BackgroundColor3 = Theme.Panel, ClipsDescendants = true, ZIndex = 5001
         })
         Create("UICorner", { Parent = NotifFrame, CornerRadius = UDim.new(0, 6) })
-        Create("UIStroke", { Parent = NotifFrame, Color = Color3.new(0, 0, 0), Thickness = 1 })
+        Create("UIStroke", { Parent = NotifFrame, Color = Theme.Divider, Thickness = 1 })
 
         local ContentWrapper = Create("Frame", { Parent = NotifFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1 })
 
         local DescLbl = Create("TextLabel", {
             Parent = ContentWrapper, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 12, 0, 8),
             BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
-            TextColor3 = Theme.Text, Text = Content, TextXAlignment = Enum.TextXAlignment.Left,
+            TextColor3 = Theme.Text, Text = Capitalize(Content), TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 5002
         })
 
         local ProgressBg = Create("Frame", {
             Parent = ContentWrapper, Size = UDim2.new(1, -24, 0, 5), Position = UDim2.new(0, 12, 0, 30),
-            BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 5002
+            BackgroundColor3 = Theme.Element, BorderSizePixel = 0, ZIndex = 5002
         })
         Create("UICorner", { Parent = ProgressBg, CornerRadius = UDim.new(1, 0) })
         Create("UIStroke", { Parent = ProgressBg, Color = Theme.Divider, Thickness = 1 })
 
         local ProgressFill = Create("Frame", {
             Parent = ProgressBg, Size = UDim2.new(1, 0, 1, 0),
-            BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 5003
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255), BorderSizePixel = 0, ZIndex = 5003
         })
         Create("UICorner", { Parent = ProgressFill, CornerRadius = UDim.new(1, 0) })
-        
-        Create("UIGradient", {
-            Parent = ProgressFill, Color = TargetGradient
-        })
+        Create("UIGradient", { Parent = ProgressFill, Color = CurrentGradient })
 
-        -- Spawn Animation
         TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, notifWidth, 0, targetHeight)}):Play()
 
-        -- Deplete Progress Bar Animation
         local progressTween = TweenService:Create(ProgressFill, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)})
         progressTween:Play()
 
-        -- Destroy Animation
         task.delay(Duration, function()
-            local fadeOut = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, notifWidth, 0, 0)})
+            local fadeOut = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, 0, 0, targetHeight)})
             fadeOut:Play()
             fadeOut.Completed:Connect(function() NotifFrame:Destroy() end)
         end)
     end
 
-    function WindowObj:SaveConfig(Name)
+    function WindowObj:SaveConfig(Name, Silent)
         if not Name or Name == "" then return end
-        local json = HttpService:JSONEncode(self.Flags)
-        SaveFile(Name, json)
+        local success, json = pcall(function() return HttpService:JSONEncode(self.Flags) end)
+        if not success then
+            if not Silent then self:Notify({Title = "Error", Content = "Failed to encode config.", Duration = 3, Type = "red"}) end
+            return
+        end
+        local saveSuccess = pcall(function()
+            if not isfolder(ConfigFolder) then makefolder(ConfigFolder) end
+            writefile(ConfigFolder .. "/" .. Name .. ".cfg", json)
+        end)
+        if saveSuccess then
+            if not Silent then self:Notify({Title = "Success", Content = "Config saved: " .. Name, Duration = 3, Type = "green"}) end
+        else
+            if not Silent then self:Notify({Title = "Error", Content = "Failed to write config file.", Duration = 3, Type = "red"}) end
+        end
     end
 
     function WindowObj:LoadConfig(Name)
         if not Name or Name == "" then return end
-        local json = LoadFile(Name)
-        if json then
-            local success, decoded = pcall(function() return HttpService:JSONDecode(json) end)
-            if success and type(decoded) == "table" then
-                for flag, value in pairs(decoded) do
-                    if self.Elements[flag] then self.Elements[flag].SetValue(value) end
-                end
+        local path = ConfigFolder .. "/" .. Name .. ".cfg"
+        local readSuccess, data = pcall(function()
+            if isfolder(ConfigFolder) and isfile(path) then
+                return readfile(path)
+            end
+            return nil
+        end)
+        if not readSuccess or not data then
+            self:Notify({Title = "Error", Content = "Config file not found or unreadable.", Duration = 3, Type = "red"})
+            return
+        end
+        local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(data) end)
+        if not decodeSuccess or type(decoded) ~= "table" then
+            self:Notify({Title = "Error", Content = "Config file is corrupted.", Duration = 3, Type = "red"})
+            return
+        end
+        for flag, value in pairs(decoded) do
+            if self.Elements[flag] then
+                pcall(function() self.Elements[flag].SetValue(value) end)
             end
         end
+        self:Notify({Title = "Success", Content = "Config loaded: " .. Name, Duration = 3, Type = "blue"})
     end
 
     function WindowObj:DeleteConfig(Name)
         if not Name or Name == "" then return end
-        DeleteFile(Name)
+        local path = ConfigFolder .. "/" .. Name .. ".cfg"
+        local delSuccess = pcall(function()
+            if isfolder(ConfigFolder) and isfile(path) then
+                delfile(path)
+            end
+        end)
+        if delSuccess then
+            self:Notify({Title = "Success", Content = "Config deleted: " .. Name, Duration = 3, Type = "yellow"})
+        else
+            self:Notify({Title = "Error", Content = "Failed to delete config.", Duration = 3, Type = "red"})
+        end
     end
 
     function WindowObj:GetConfigs() return ListFiles() end
@@ -645,7 +712,7 @@ function Ui:CreateWindow(Config)
         
         local BtnText = Create("TextLabel", {
             Parent = TabBtn, Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 34, 0, 0), BackgroundTransparency = 1, ZIndex = 2,
-            Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, Text = Name, TextTransparency = 1
+            Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, Text = Capitalize(Name), TextTransparency = 1
         })
 
         TabBtn.MouseButton1Click:Connect(function() WindowObj:SelectTab(Name) end)
@@ -656,14 +723,26 @@ function Ui:CreateWindow(Config)
         function Tab:CreateSection(Title, Side)
             local ParentCol = Side == "Right" and RightCol or LeftCol
             
-            local Section = Create("Frame", { Parent = ParentCol, Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 3 })
+            local Section = Create("ScrollingFrame", { 
+                Parent = ParentCol, Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 3,
+                ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, CanvasSize = UDim2.new(0, 0, 0, 0)
+            })
             Create("UICorner", { Parent = Section, CornerRadius = UDim.new(0, 8) })
             
             local SectionLayout = Create("UIListLayout", { Parent = Section, Padding = UDim.new(0, 0), SortOrder = 2 })
             Create("UIPadding", { Parent = Section, PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10) })
 
+            local elementCount = 0
+
             SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                Section.Size = UDim2.new(1, 0, 0, SectionLayout.AbsoluteContentSize.Y + 20)
+                local contentHeight = SectionLayout.AbsoluteContentSize.Y + 20
+                if elementCount > 6 then
+                    Section.Size = UDim2.new(1, 0, 0, 320)
+                    Section.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
+                else
+                    Section.Size = UDim2.new(1, 0, 0, contentHeight)
+                    Section.CanvasSize = UDim2.new(0, 0, 0, 0)
+                end
             end)
 
             local Elements = {}
@@ -674,24 +753,29 @@ function Ui:CreateWindow(Config)
                         child:Destroy()
                     end
                 end
+                elementCount = 0
             end
 
             function Elements:AddLabel(Config)
+                elementCount = elementCount + 1
                 local Text = Config.Text or "Label"
                 local LabelFrame = Create("Frame", { Parent = Section, Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, ZIndex = 4 })
                 Create("UIPadding", { Parent = LabelFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
 
                 Create("TextLabel", {
                     Parent = LabelFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Text,
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(Text),
                     TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y
                 })
             end
 
             function Elements:AddToggle(Config)
+                elementCount = elementCount + 1
                 local TglName = Config.Name or "Toggle"
                 local Flag = Config.Flag or TglName
-                local State = Config.Default or false
+                local ManualState = Config.Default or false
+                local KeybindState = false
+                local State = ManualState or KeybindState
                 local Tooltip = Config.Tooltip
                 local Callback = Config.Callback or function() end
 
@@ -701,58 +785,95 @@ function Ui:CreateWindow(Config)
                     WindowObj.Flags[Flag.."_Mode"] = ToggleData.Mode
                 end
 
-                WindowObj.Flags[Flag] = State 
+                WindowObj.Flags[Flag] = ManualState 
                 ToggleData.UpdateSave()
 
                 local ToggleFrame = Create("Frame", { Parent = Section, Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1, ZIndex = 4 })
                 Create("UIPadding", { Parent = ToggleFrame, PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
 
                 local LabelContainer = Create("Frame", { Parent = ToggleFrame, Size = UDim2.new(1, -60, 1, 0), BackgroundTransparency = 1, ZIndex = 5 })
-                Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4) })
+                Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
                 
                 Create("TextLabel", {
-                    Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = TglName, AutomaticSize = Enum.AutomaticSize.X
+                    Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5, LayoutOrder = 1,
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(TglName), AutomaticSize = Enum.AutomaticSize.X
                 })
 
+                local KeyIcon = Create("ImageLabel", {
+                    Parent = LabelContainer, Size = UDim2.new(0, 14, 0, 14), BackgroundTransparency = 1, ZIndex = 6, LayoutOrder = 2,
+                    ImageColor3 = Theme.Accent, Visible = false
+                })
+                local kIconData = Icons["keyboard"]
+                if kIconData then
+                    KeyIcon.Image = kIconData.Image
+                    KeyIcon.ImageRectOffset = kIconData.ImageRectOffset
+                    KeyIcon.ImageRectSize = kIconData.ImageRectSize
+                else
+                    KeyIcon.Image = "rbxassetid://14264620023"
+                end
+
                 if Tooltip then
-                    local TipLbl = Create("TextLabel", {
-                        Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 6,
-                        Font = CurrentFont, TextSize = 11, TextColor3 = Color3.fromRGB(80, 82, 90), Text = "( ? )", AutomaticSize = Enum.AutomaticSize.X, Active = true
+                    local TipIcon = Create("ImageLabel", {
+                        Parent = LabelContainer, Size = UDim2.new(0, 14, 0, 14), BackgroundTransparency = 1, ZIndex = 6, LayoutOrder = 3,
+                        ImageColor3 = Theme.TextMuted, Active = true
                     })
-                    TipLbl.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
-                    TipLbl.MouseLeave:Connect(function() HideTooltip() end)
+                    local infoData = Icons["info"]
+                    if infoData then
+                        TipIcon.Image = infoData.Image
+                        TipIcon.ImageRectOffset = infoData.ImageRectOffset
+                        TipIcon.ImageRectSize = infoData.ImageRectSize
+                    end
+                    TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
+                    TipIcon.MouseLeave:Connect(function() HideTooltip() end)
                 end
 
                 local Switch = Create("Frame", {
                     Parent = ToggleFrame, Size = UDim2.new(0, 36, 0, 20), AnchorPoint = Vector2.new(1, 0.5), ZIndex = 5,
-                    Position = UDim2.new(1, 0, 0.5, 0), BackgroundColor3 = State and Theme.Accent or Theme.Element
+                    Position = UDim2.new(1, 0, 0.5, 0), BackgroundColor3 = ManualState and Theme.Accent or Theme.Element
                 })
                 Create("UICorner", { Parent = Switch, CornerRadius = UDim.new(1, 0) })
                 
                 local Knob = Create("Frame", {
                     Parent = Switch, Size = UDim2.new(0, 14, 0, 14), AnchorPoint = Vector2.new(0, 0.5), ZIndex = 6,
-                    Position = State and UDim2.new(1, -17, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
-                    BackgroundColor3 = State and Theme.Text or Theme.TextMuted
+                    Position = ManualState and UDim2.new(1, -17, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
+                    BackgroundColor3 = ManualState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
                 })
                 Create("UICorner", { Parent = Knob, CornerRadius = UDim.new(1, 0) })
 
                 local Button = Create("TextButton", { Parent = ToggleFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 10 })
 
-                local function SetValue(newState)
-                    State = newState
-                    WindowObj.Flags[Flag] = State
-                    TweenService:Create(Switch, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = State and Theme.Accent or Theme.Element}):Play()
+                local function UpdateToggle()
+                    local newState = ManualState or KeybindState
+                    
+                    TweenService:Create(Switch, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {BackgroundColor3 = ManualState and Theme.Accent or Theme.Element}):Play()
                     TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {
-                        Position = State and UDim2.new(1, -17, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
-                        BackgroundColor3 = State and Theme.Text or Theme.TextMuted
+                        Position = ManualState and UDim2.new(1, -17, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
+                        BackgroundColor3 = ManualState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
                     }):Play()
-                    Callback(State)
+
+                    KeyIcon.Visible = KeybindState
+
+                    WindowObj.Flags[Flag] = ManualState
+
+                    if State ~= newState then
+                        State = newState
+                        Callback(State)
+                    end
+                end
+
+                local function SetManualValue(val)
+                    ManualState = val
+                    UpdateToggle()
+                end
+
+                local function SetKeybindValue(val)
+                    KeybindState = val
+                    UpdateToggle()
                 end
 
                 Button.InputBegan:Connect(function(input)
                     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        SetValue(not State)
+                        SetManualValue(not ManualState)
                     elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
                         local mousePos = UserInputService:GetMouseLocation()
                         OpenContextMenu(ToggleData, mousePos)
@@ -762,9 +883,9 @@ function Ui:CreateWindow(Config)
                 UserInputService.InputBegan:Connect(function(input, gp)
                     if not gp and input.KeyCode == ToggleData.Key and ToggleData.Key ~= Enum.KeyCode.Unknown then
                         if ToggleData.Mode == "Toggle" or ToggleData.Mode == "Click" then
-                            SetValue(not State)
+                            SetKeybindValue(not KeybindState)
                         elseif ToggleData.Mode == "Hold" then
-                            SetValue(true)
+                            SetKeybindValue(true)
                         end
                     end
                 end)
@@ -772,13 +893,13 @@ function Ui:CreateWindow(Config)
                 UserInputService.InputEnded:Connect(function(input, gp)
                     if not gp and input.KeyCode == ToggleData.Key and ToggleData.Key ~= Enum.KeyCode.Unknown then
                         if ToggleData.Mode == "Hold" then
-                            SetValue(false)
+                            SetKeybindValue(false)
                         end
                     end
                 end)
 
                 WindowObj.Elements[Flag] = { 
-                    SetValue = function(val) SetValue(val) end,
+                    SetValue = function(val) SetManualValue(val) end,
                     SetKey = function(keyName) ToggleData.Key = Enum.KeyCode[keyName] or Enum.KeyCode.Unknown end,
                     SetMode = function(modeStr) ToggleData.Mode = modeStr end
                 }
@@ -787,6 +908,7 @@ function Ui:CreateWindow(Config)
             end
 
             function Elements:AddDropdown(Config)
+                elementCount = elementCount + 1
                 local DropName = Config.Name or "Dropdown"
                 local Flag = Config.Flag or DropName
                 local Options = Config.Options or {}
@@ -801,68 +923,77 @@ function Ui:CreateWindow(Config)
                 Create("UIPadding", { Parent = DropFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
 
                 local LabelContainer = Create("Frame", { Parent = DropFrame, Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, ZIndex = 5 })
-                Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4) })
+                Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
                 
                 Create("TextLabel", {
-                    Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = DropName, AutomaticSize = Enum.AutomaticSize.X
+                    Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5, LayoutOrder = 1,
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(DropName), AutomaticSize = Enum.AutomaticSize.X
                 })
 
                 if Tooltip then
-                    local TipLbl = Create("TextLabel", {
-                        Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 6,
-                        Font = CurrentFont, TextSize = 11, TextColor3 = Color3.fromRGB(80, 82, 90), Text = "( ? )", AutomaticSize = Enum.AutomaticSize.X, Active = true
+                    local TipIcon = Create("ImageLabel", {
+                        Parent = LabelContainer, Size = UDim2.new(0, 14, 0, 14), BackgroundTransparency = 1, ZIndex = 6, LayoutOrder = 2,
+                        ImageColor3 = Theme.TextMuted, Active = true
                     })
-                    TipLbl.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
-                    TipLbl.MouseLeave:Connect(function() HideTooltip() end)
+                    local infoData = Icons["info"]
+                    if infoData then
+                        TipIcon.Image = infoData.Image
+                        TipIcon.ImageRectOffset = infoData.ImageRectOffset
+                        TipIcon.ImageRectSize = infoData.ImageRectSize
+                    end
+                    TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
+                    TipIcon.MouseLeave:Connect(function() HideTooltip() end)
                 end
 
                 local MainBtn = Create("TextButton", {
                     Parent = DropFrame, Size = UDim2.new(1, 0, 0, 30), Position = UDim2.new(0, 0, 0, 20), BackgroundColor3 = Theme.Element, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = CurrentValue, AutoButtonColor = false, TextXAlignment = Enum.TextXAlignment.Left
+                    Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = Capitalize(CurrentValue), AutoButtonColor = false, TextXAlignment = Enum.TextXAlignment.Left
                 })
                 Create("UICorner", { Parent = MainBtn, CornerRadius = UDim.new(0, 6) })
                 Create("UIPadding", { Parent = MainBtn, PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) })
                 
                 local Chevron = Create("TextLabel", {
-                    Parent = MainBtn, Size = UDim2.new(0, 20, 1, 0), Position = UDim2.new(1, -20, 0, 0), BackgroundTransparency = 1, ZIndex = 6,
-                    Font = CurrentFont, TextSize = 14, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Right, Text = "v"
+                    Parent = MainBtn, Size = UDim2.new(0, 20, 0, 20), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -15, 0.5, 0), BackgroundTransparency = 1, ZIndex = 6,
+                    Font = CurrentFont, TextSize = 14, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Center, Text = "v"
                 })
 
                 local ListContainer = Create("ScrollingFrame", {
-                    Parent = ScreenGui, Size = UDim2.new(0, 1, 0, 0), BackgroundColor3 = Theme.Element, ZIndex = 1600, Visible = false,
-                    ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, BorderSizePixel = 0, CanvasSize = UDim2.new(0,0,0,0)
+                    Parent = DropFrame, Size = UDim2.new(1, 0, 0, 0), Position = UDim2.new(0, 0, 0, 55), BackgroundColor3 = Theme.Element, ZIndex = 6, Visible = false,
+                    ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, BorderSizePixel = 0, CanvasSize = UDim2.new(0,0,0,0), ClipsDescendants = true
                 })
                 Create("UICorner", { Parent = ListContainer, CornerRadius = UDim.new(0, 6) })
                 Create("UIStroke", { Parent = ListContainer, Color = Theme.Divider, Thickness = 1 })
                 local ListLayout = Create("UIListLayout", { Parent = ListContainer, SortOrder = 2 })
                 
-                table.insert(WindowObj.DropdownContainers, {Container = ListContainer, Btn = MainBtn, Chevron = Chevron})
-
-                local function SetValue(val)
-                    CurrentValue = val
-                    MainBtn.Text = val
-                    WindowObj.Flags[Flag] = val
-                    Callback(val)
-                end
+                table.insert(WindowObj.DropdownContainers, {Container = ListContainer, Frame = DropFrame, Btn = MainBtn, Chevron = Chevron})
 
                 local function BuildOptions(optTable)
                     for _, child in ipairs(ListContainer:GetChildren()) do
                         if child:IsA("TextButton") then child:Destroy() end
                     end
                     for _, option in ipairs(optTable) do
+                        local isSelected = (option == CurrentValue)
                         local OptBtn = Create("TextButton", {
-                            Parent = ListContainer, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1, ZIndex = 1601,
-                            Font = CurrentFont, TextSize = 12, TextColor3 = Theme.TextMuted, Text = option
+                            Parent = ListContainer, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1, ZIndex = 7,
+                            Font = CurrentFont, TextSize = 12, TextColor3 = isSelected and Theme.Accent or Theme.TextMuted, Text = Capitalize(option)
                         })
                         OptBtn.MouseEnter:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = Theme.Accent}):Play() end)
-                        OptBtn.MouseLeave:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = Theme.TextMuted}):Play() end)
+                        OptBtn.MouseLeave:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = (option == CurrentValue) and Theme.Accent or Theme.TextMuted}):Play() end)
                         OptBtn.MouseButton1Click:Connect(function()
-                            SetValue(option)
+                            WindowObj.Elements[Flag].SetValue(option)
                             CloseMenus()
                         end)
                     end
                 end
+
+                local function SetValue(val)
+                    CurrentValue = val
+                    MainBtn.Text = Capitalize(val)
+                    WindowObj.Flags[Flag] = val
+                    BuildOptions(Options)
+                    Callback(val)
+                end
+
                 BuildOptions(Options)
 
                 ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
@@ -873,31 +1004,32 @@ function Ui:CreateWindow(Config)
                     local open = not ListContainer.Visible
                     CloseMenus()
                     if open then
-                        local absPos = MainBtn.AbsolutePosition
-                        local absSize = MainBtn.AbsoluteSize
                         local count = 0
                         for _,v in ipairs(ListContainer:GetChildren()) do if v:IsA("TextButton") then count = count + 1 end end
-                        local calcHeight = math.clamp(count * 25, 0, 150)
+                        local calcHeight = math.clamp(count * 25, 0, 4 * 25)
                         
-                        ListContainer.Size = UDim2.new(0, absSize.X, 0, 0)
-                        ListContainer.Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 4)
+                        ListContainer.Size = UDim2.new(1, 0, 0, 0)
                         ListContainer.Visible = true
-                        CloseOverlay.Visible = true
                         
-                        TweenService:Create(ListContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(0, absSize.X, 0, calcHeight)}):Play()
-                        TweenService:Create(Chevron, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Rotation = 180}):Play()
+                        TweenService:Create(ListContainer, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, calcHeight)}):Play()
+                        TweenService:Create(DropFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Size = UDim2.new(1, 0, 0, 60 + calcHeight + 5)}):Play()
+                        Chevron.Rotation = 180
                     end
                 end)
 
                 WindowObj.Elements[Flag] = { 
                     Type = "Dropdown", 
                     SetValue = SetValue,
-                    UpdateOptions = function(newOpts) BuildOptions(newOpts) end
+                    UpdateOptions = function(newOpts)
+                        Options = newOpts
+                        BuildOptions(newOpts)
+                    end
                 }
                 return WindowObj.Elements[Flag]
             end
 
             function Elements:AddSlider(Config)
+                elementCount = elementCount + 1
                 local SldName = Config.Name or "Slider"
                 local Flag = Config.Flag or SldName
                 local Min = Config.Min or 0
@@ -914,20 +1046,26 @@ function Ui:CreateWindow(Config)
                 Create("UIPadding", { Parent = SliderFrame, PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
 
                 local LabelContainer = Create("Frame", { Parent = SliderFrame, Size = UDim2.new(0.5, 0, 0, 20), Position = UDim2.new(0, 0, 0, 5), BackgroundTransparency = 1, ZIndex = 5 })
-                Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4) })
+                Create("UIListLayout", { Parent = LabelContainer, FillDirection = Enum.FillDirection.Horizontal, VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
                 
                 Create("TextLabel", {
-                    Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = SldName, AutomaticSize = Enum.AutomaticSize.X
+                    Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5, LayoutOrder = 1,
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(SldName), AutomaticSize = Enum.AutomaticSize.X
                 })
 
                 if Tooltip then
-                    local TipLbl = Create("TextLabel", {
-                        Parent = LabelContainer, Size = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 6,
-                        Font = CurrentFont, TextSize = 11, TextColor3 = Color3.fromRGB(80, 82, 90), Text = "( ? )", AutomaticSize = Enum.AutomaticSize.X, Active = true
+                    local TipIcon = Create("ImageLabel", {
+                        Parent = LabelContainer, Size = UDim2.new(0, 14, 0, 14), BackgroundTransparency = 1, ZIndex = 6, LayoutOrder = 2,
+                        ImageColor3 = Theme.TextMuted, Active = true
                     })
-                    TipLbl.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
-                    TipLbl.MouseLeave:Connect(function() HideTooltip() end)
+                    local infoData = Icons["info"]
+                    if infoData then
+                        TipIcon.Image = infoData.Image
+                        TipIcon.ImageRectOffset = infoData.ImageRectOffset
+                        TipIcon.ImageRectSize = infoData.ImageRectSize
+                    end
+                    TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
+                    TipIcon.MouseLeave:Connect(function() HideTooltip() end)
                 end
 
                 local ValueDisplay = Create("TextLabel", {
@@ -947,7 +1085,7 @@ function Ui:CreateWindow(Config)
 
                 local Knob = Create("Frame", {
                     Parent = Fill, Size = UDim2.new(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 7,
-                    BackgroundColor3 = Theme.Text
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255)
                 })
                 Create("UICorner", { Parent = Knob, CornerRadius = UDim.new(1, 0) })
 
@@ -956,7 +1094,7 @@ function Ui:CreateWindow(Config)
                 local function SetValue(newValue)
                     newValue = math.clamp(newValue, Min, Max)
                     newValue = math.floor((newValue / Step) + 0.5) * Step
-                    Value = tonumber(string.format("%."..Decimals.."f", newValue)) -- Fixing floating precision
+                    Value = tonumber(string.format("%."..Decimals.."f", newValue))
                     
                     WindowObj.Flags[Flag] = Value
                     local Percent = (Value - Min) / (Max - Min)
@@ -991,6 +1129,7 @@ function Ui:CreateWindow(Config)
             end
 
             function Elements:AddButton(Config)
+                elementCount = elementCount + 1
                 local BtnName = Config.Name or "Button"
                 local Danger = Config.Danger or false
                 local Selected = Config.Selected or false
@@ -1001,7 +1140,7 @@ function Ui:CreateWindow(Config)
 
                 local Btn = Create("TextButton", {
                     Parent = ButtonFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.Element, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Selected and Theme.Accent or (Danger and Theme.Danger or Theme.Text), Text = BtnName, AutoButtonColor = false
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Selected and Theme.Accent or (Danger and Theme.Danger or Theme.Text), Text = Capitalize(BtnName), AutoButtonColor = false
                 })
                 Create("UICorner", { Parent = Btn, CornerRadius = UDim.new(0, 6) })
 
@@ -1025,6 +1164,7 @@ function Ui:CreateWindow(Config)
             end
 
             function Elements:AddKeybind(Config)
+                elementCount = elementCount + 1
                 local KeyName = Config.Name or "Keybind"
                 local DefaultKey = Config.Default or Enum.KeyCode.RightShift
                 local Callback = Config.Callback or function() end
@@ -1040,7 +1180,7 @@ function Ui:CreateWindow(Config)
 
                 local KeyNameLabel = Create("TextLabel", {
                     Parent = BtnBg, Size = UDim2.new(1, -70, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, ZIndex = 6,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, Text = KeyName
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(KeyName)
                 })
                 
                 local KeyIndicatorBg = Create("Frame", {
@@ -1052,7 +1192,7 @@ function Ui:CreateWindow(Config)
 
                 local KeyIndicatorText = Create("TextLabel", {
                     Parent = KeyIndicatorBg, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 7,
-                    Font = CurrentFont, TextSize = 11, TextColor3 = Theme.Accent, Text = CurrentKey.Name
+                    Font = CurrentFont, TextSize = 11, TextColor3 = Theme.TextMuted, Text = Capitalize(CurrentKey.Name)
                 })
 
                 local Hitbox = Create("TextButton", { Parent = BtnBg, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Text = "", ZIndex = 10 })
@@ -1061,7 +1201,7 @@ function Ui:CreateWindow(Config)
                 Hitbox.MouseButton1Click:Connect(function()
                     Binding = true
                     KeyIndicatorText.Text = "..."
-                    TweenService:Create(KeyIndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
+                    TweenService:Create(KeyIndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.TextMuted}):Play()
                     TweenService:Create(KeyIndicatorText, TweenInfo.new(0.2), {TextColor3 = Theme.Background}):Play()
                 end)
 
@@ -1069,15 +1209,16 @@ function Ui:CreateWindow(Config)
                     if Binding and input.UserInputType == Enum.UserInputType.Keyboard then
                         Binding = false
                         CurrentKey = input.KeyCode
-                        KeyIndicatorText.Text = CurrentKey.Name
+                        KeyIndicatorText.Text = Capitalize(CurrentKey.Name)
                         TweenService:Create(KeyIndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Panel}):Play()
-                        TweenService:Create(KeyIndicatorText, TweenInfo.new(0.2), {TextColor3 = Theme.Accent}):Play()
+                        TweenService:Create(KeyIndicatorText, TweenInfo.new(0.2), {TextColor3 = Theme.TextMuted}):Play()
                         Callback(CurrentKey)
                     end
                 end)
             end
 
             function Elements:AddTextBox(Config)
+                elementCount = elementCount + 1
                 local TxtName = Config.Name or "Enter text..."
                 local Callback = Config.Callback or function() end
 
@@ -1086,7 +1227,7 @@ function Ui:CreateWindow(Config)
 
                 local Box = Create("TextBox", {
                     Parent = TextBoxFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.Background, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.Text, Text = "", PlaceholderText = TxtName,
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.Text, Text = "", PlaceholderText = Capitalize(TxtName),
                     PlaceholderColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Center, ClearTextOnFocus = false
                 })
                 Create("UICorner", { Parent = Box, CornerRadius = UDim.new(0, 6) })
@@ -1117,9 +1258,8 @@ function Ui:CreateWindow(Config)
         self.CurrentTab = TabName
     end
 
-    -- Automatically setup Config/Settings as the last tab
     local SettingsTab = WindowObj:CreateTab("settings", "Settings")
-    SettingsTab.Button.LayoutOrder = 9999 -- Keeps it at the end
+    SettingsTab.Button.LayoutOrder = 9999 
 
     local CfgLeft = SettingsTab:CreateSection("Saved Configs", "Left")
     local UiSettings = SettingsTab:CreateSection("UI Settings", "Left")
@@ -1147,7 +1287,7 @@ function Ui:CreateWindow(Config)
     })
 
     UiSettings:AddButton({ 
-        Name = "Unload UI", 
+        Name = "Eject", 
         Danger = true, 
         Callback = function() Ui:Unload() end 
     })
@@ -1172,7 +1312,7 @@ function Ui:CreateWindow(Config)
             local isSelected = (CurrentConfigName == cfg)
             local btnText = isSelected and ("✓  " .. cfg) or ("     " .. cfg)
             CfgLeft:AddButton({ 
-                Name = btnText, 
+                Name = Capitalize(btnText), 
                 Selected = isSelected,
                 Callback = function() 
                     CurrentConfigName = cfg 
@@ -1232,7 +1372,7 @@ function Ui:CreateWindow(Config)
     task.spawn(function()
         while task.wait(5) do
             if AutoSaveConfig and CurrentConfigName ~= "" then
-                WindowObj:SaveConfig(CurrentConfigName)
+                WindowObj:SaveConfig(CurrentConfigName, true)
             end
         end
     end)
@@ -1255,4 +1395,71 @@ function Ui:CreateWindow(Config)
     return WindowObj
 end
 
-return Ui
+local Window = Ui:CreateWindow({
+    Title = "DIHWARE"
+})
+
+local MainTab = Window:CreateTab("info", "Information")
+
+local MainSection = MainTab:CreateSection("Demonstration", "Left")
+
+MainSection:AddLabel({
+    Text = "This is a label"
+})
+
+MainSection:AddButton({
+    Name = "This is a button (notf)",
+    Callback = function()
+        local availableColors = {"white", "red", "blue", "green", "yellow"}
+        local randomColor = availableColors[math.random(1, #availableColors)]
+        
+        Window:Notify({
+            Title = "Random Notification",
+            Content = randomColor .. " notification!",
+            Duration = 3,
+            Type = randomColor
+        })
+    end
+})
+
+MainSection:AddSlider({
+    Name = "This is a slider",
+    Min = 16,
+    Max = 100,
+    Step = 1,
+    Default = 16,
+    Tooltip = "This is an information",
+    Callback = function(Value)
+        print("Slider value changed to: " .. tostring(Value))
+    end
+})
+
+MainSection:AddToggle({
+    Name = "This is a toggle",
+    Default = false,
+    Tooltip = "This is an information",
+    Callback = function(State)
+        print("God Mode toggled: " .. tostring(State))
+    end
+})
+
+MainSection:AddDropdown({
+    Name = "This is a dropdown",
+    Options = {"1", "2", "3", "4", "5"},
+    Default = "1",
+    Callback = function(SelectedOption)
+    end
+})
+
+MainSection:AddKeybind({
+    Name = "This is a keybind",
+    Default = Enum.KeyCode.Q,
+    Callback = function(Key)
+    end
+})
+
+MainSection:AddTextBox({
+    Name = "This is a textbox",
+    Callback = function(InputText)
+    end
+})
