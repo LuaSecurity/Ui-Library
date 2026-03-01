@@ -252,63 +252,20 @@ function Ui:CreateWindow(Config)
 
     local KeybindOverlay = Create("Frame", {
         Name = "KeybindOverlay", Parent = ScreenGui,
-        Size = UDim2.new(0, 200, 0, 80), Position = UDim2.new(0.05, 0, 0.2, 0),
+        Size = UDim2.new(0, 200, 0, 70), Position = UDim2.new(0, 50, 0, 150),
         BackgroundColor3 = Theme.Background, BorderSizePixel = 0, Active = true,
-        ClipsDescendants = true, ZIndex = 1, Visible = false
+        ClipsDescendants = true, ZIndex = 1
     })
     Create("UICorner", { Parent = KeybindOverlay, CornerRadius = UDim.new(0, 10) })
-
-    local KBTopBar = Create("Frame", {
-        Name = "KBTopBar", Parent = KeybindOverlay,
-        Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 2
-    })
-    Create("UICorner", { Parent = KBTopBar, CornerRadius = UDim.new(0, 10) })
-    Create("Frame", {
-        Parent = KBTopBar, Size = UDim2.new(1, 0, 0, 10), AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 2
-    })
-    Create("Frame", {
-        Parent = KeybindOverlay, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 30), BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 3
-    })
-    MakeDraggable(KBTopBar, KeybindOverlay)
-
-    Create("TextLabel", {
-        Parent = KBTopBar, Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 4,
-        Font = CurrentFont, TextSize = 13, TextColor3 = Color3.new(1, 1, 1), Text = "Keybinds"
-    })
-
-    local KBBottomBar = Create("Frame", {
-        Name = "KBBottomBar", Parent = KeybindOverlay,
-        Size = UDim2.new(1, 0, 0, 15), AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 2
-    })
-    Create("UICorner", { Parent = KBBottomBar, CornerRadius = UDim.new(0, 10) })
-    Create("Frame", {
-        Parent = KBBottomBar, Size = UDim2.new(1, 0, 0, 10), AnchorPoint = Vector2.new(0, 0),
-        Position = UDim2.new(0, 0, 0, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 2
-    })
-    Create("Frame", {
-        Parent = KeybindOverlay, Size = UDim2.new(1, 0, 0, 1), AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 0, 1, -15), BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 3
-    })
-
-    local KBContent = Create("Frame", {
-        Name = "KBContent", Parent = KeybindOverlay,
-        Size = UDim2.new(1, 0, 1, -46), Position = UDim2.new(0, 0, 0, 31),
-        BackgroundTransparency = 1, ZIndex = 4
-    })
-    local KBLayout = Create("UIListLayout", {
-        Parent = KBContent, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 0)
-    })
-
+    
     local kbSnowflakeList = {}
     local kbTimeAccumulator = 0
+    local kbTargetSpawnRate = 3
 
-    local function generateKBSnowflake()
+    local function generateKbSnowflake()
         local particleSize = randomizer:NextInteger(2, 4)
         local initialX = randomizer:NextNumber(0, 1)
-        local descentSpeed = randomizer:NextNumber(0.08, 0.25)
+        local descentSpeed = randomizer:NextNumber(0.05, 0.15)
         local swaySpeed = randomizer:NextNumber(0.5, 1.5)
         local swayDistance = randomizer:NextNumber(0.01, 0.04)
         local visualOpacity = randomizer:NextNumber(0.2, 0.8)
@@ -336,18 +293,18 @@ function Ui:CreateWindow(Config)
     local kbSnowConnection
     kbSnowConnection = RunService.RenderStepped:Connect(function(deltaTime)
         if not KeybindOverlay or not KeybindOverlay.Parent then
-            if kbSnowConnection then kbSnowConnection:Disconnect() end
+            if kbSnowConnection then
+                kbSnowConnection:Disconnect()
+            end
             return
         end
 
-        if not KeybindOverlay.Visible then return end
-
         kbTimeAccumulator = kbTimeAccumulator + deltaTime
-        local spawnThreshold = 1 / 3
+        local spawnThreshold = 1 / kbTargetSpawnRate
 
         while kbTimeAccumulator >= spawnThreshold do
             kbTimeAccumulator = kbTimeAccumulator - spawnThreshold
-            generateKBSnowflake()
+            generateKbSnowflake()
         end
 
         for index = #kbSnowflakeList, 1, -1 do
@@ -367,39 +324,79 @@ function Ui:CreateWindow(Config)
         end
     end)
 
+    local KbHeader = Create("Frame", {
+        Name = "KbHeader", Parent = KeybindOverlay,
+        Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 10
+    })
+    Create("UICorner", { Parent = KbHeader, CornerRadius = UDim.new(0, 10) })
+    Create("Frame", {
+        Name = "KbHeaderBottomFiller", Parent = KbHeader,
+        Size = UDim2.new(1, 0, 0, 15), AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 10
+    })
+    MakeDraggable(KbHeader, KeybindOverlay)
+
+    Create("TextLabel", {
+        Parent = KbHeader, Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 15, 0, 0),
+        BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 11,
+        Font = CurrentFont, TextSize = 13, TextColor3 = Color3.new(1, 1, 1), Text = "Keybinds"
+    })
+
+    Create("Frame", { Parent = KeybindOverlay, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 30), BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 10 })
+
+    local KbContent = Create("Frame", {
+        Name = "KbContent", Parent = KeybindOverlay,
+        Size = UDim2.new(1, 0, 1, -45), Position = UDim2.new(0, 0, 0, 31), BackgroundTransparency = 1, ZIndex = 5
+    })
+    local KbLayout = Create("UIListLayout", { Parent = KbContent, Padding = UDim.new(0, 5), SortOrder = 2 })
+    Create("UIPadding", { Parent = KbContent, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 15), PaddingRight = UDim.new(0, 15) })
+
+    local KbBottomArea = Create("Frame", {
+        Name = "KbBottomArea", Parent = KeybindOverlay,
+        Size = UDim2.new(1, 0, 0, 15), AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 20
+    })
+    Create("UICorner", { Parent = KbBottomArea, CornerRadius = UDim.new(0, 10) })
+    Create("Frame", {
+        Name = "KbBottomAreaTopFiller", Parent = KbBottomArea,
+        Size = UDim2.new(1, 0, 0, 8), AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 20
+    })
+    Create("Frame", {
+        Name = "KbBottomSeparator", Parent = KeybindOverlay,
+        Size = UDim2.new(1, 0, 0, 1), AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 0, 1, -15),
+        BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 22
+    })
+
     local ActiveKeybinds = {}
 
     local function UpdateKeybindOverlay()
-        for _, child in ipairs(KBContent:GetChildren()) do
+        for _, child in ipairs(KbContent:GetChildren()) do
             if child:IsA("Frame") then child:Destroy() end
         end
 
         local count = 0
         for name, data in pairs(ActiveKeybinds) do
-            count = count + 1
-            local row = Create("Frame", {
-                Parent = KBContent, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1, ZIndex = 5
-            })
-            Create("UIPadding", { Parent = row, PaddingLeft = UDim.new(0, 15), PaddingRight = UDim.new(0, 15) })
-
-            Create("TextLabel", {
-                Parent = row, Size = UDim2.new(0.6, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
-                BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6,
-                Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = Capitalize(name)
-            })
-
-            Create("TextLabel", {
-                Parent = row, Size = UDim2.new(0.4, 0, 1, 0), Position = UDim2.new(0.6, 0, 0, 0),
-                BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 6,
-                Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Accent, Text = "[ " .. Capitalize(data.Mode) .. " ]"
-            })
+            if data.active then
+                count = count + 1
+                local row = Create("Frame", { Parent = KbContent, Size = UDim2.new(1, 0, 0, 15), BackgroundTransparency = 1, ZIndex = 6 })
+                Create("TextLabel", {
+                    Parent = row, Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, ZIndex = 6,
+                    Font = CurrentFont, TextSize = 12, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(name)
+                })
+                Create("TextLabel", {
+                    Parent = row, Size = UDim2.new(0, 50, 1, 0), Position = UDim2.new(1, -50, 0, 0), BackgroundTransparency = 1, ZIndex = 6,
+                    Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Accent, TextXAlignment = Enum.TextXAlignment.Right, Text = "[ " .. Capitalize(data.mode) .. " ]"
+                })
+            end
         end
 
-        local baseHeight = 30 + 1 + 15 + 1
-        local contentHeight = count * 25
-        local minContentHeight = 25
-
-        KeybindOverlay.Size = UDim2.new(0, 200, 0, baseHeight + math.max(contentHeight, minContentHeight))
+        local calculatedHeight = 30 + 15 + (count * 20)
+        KeybindOverlay.Size = UDim2.new(0, 200, 0, calculatedHeight)
         
         if count > 0 or ScreenGui.Enabled then
             KeybindOverlay.Visible = true
@@ -772,6 +769,7 @@ function Ui:CreateWindow(Config)
                 ActiveContextConfig.UpdateSave()
                 CtxModeList.Visible = false
                 CtxChevron.Rotation = 0
+                UpdateKeybindOverlay()
             end
         end)
         btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {TextColor3 = Color3.new(1, 1, 1)}):Play() end)
@@ -1119,10 +1117,14 @@ function Ui:CreateWindow(Config)
                 local Tooltip = Config.Tooltip
                 local Callback = Config.Callback or function() end
 
+                ActiveKeybinds[TglName] = { active = false, mode = "Toggle" }
+
                 local ToggleData = { Key = Enum.KeyCode.Unknown, Mode = "Toggle" }
                 ToggleData.UpdateSave = function()
                     WindowObj.Flags[Flag.."_Key"] = ToggleData.Key.Name
                     WindowObj.Flags[Flag.."_Mode"] = ToggleData.Mode
+                    ActiveKeybinds[TglName].mode = ToggleData.Mode
+                    UpdateKeybindOverlay()
                 end
 
                 WindowObj.Flags[Flag] = ManualState 
@@ -1188,17 +1190,13 @@ function Ui:CreateWindow(Config)
                     TweenService:Create(TitleLabel, TweenInfo.new(0.25, Enum.EasingStyle.Quint), {TextColor3 = newState and Color3.new(1, 1, 1) or Theme.TextMuted}):Play()
 
                     KeyIcon.Visible = KeybindState
+                    ActiveKeybinds[TglName].active = KeybindState
+                    UpdateKeybindOverlay()
 
                     WindowObj.Flags[Flag] = ManualState
 
                     if State ~= newState then
                         State = newState
-                        if KeybindState and ToggleData.Key ~= Enum.KeyCode.Unknown then
-                            ActiveKeybinds[TglName] = {Mode = ToggleData.Mode}
-                        else
-                            ActiveKeybinds[TglName] = nil
-                        end
-                        UpdateKeybindOverlay()
                         Callback(State)
                     end
                 end
