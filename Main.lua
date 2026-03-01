@@ -181,11 +181,13 @@ function Ui:CreateWindow(Config)
     })
     Create("UICorner", { Parent = OverlayFrame, CornerRadius = UDim.new(0, 10) })
 
-    local OverlayHeader = Create("Frame", {
+local OverlayHeader = Create("Frame", {
         Name = "OverlayHeader", Parent = OverlayFrame,
         Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 60
     })
     Create("UICorner", { Parent = OverlayHeader, CornerRadius = UDim.new(0, 10) })
+    
+    -- Filler sits at the bottom of the header to square the bottom edge
     Create("Frame", {
         Name = "OverlayHeaderFiller", Parent = OverlayHeader,
         Size = UDim2.new(1, 0, 0, 10), AnchorPoint = Vector2.new(0, 1),
@@ -205,10 +207,12 @@ function Ui:CreateWindow(Config)
         Position = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 60
     })
     Create("UICorner", { Parent = OverlayBottom, CornerRadius = UDim.new(0, 10) })
+    
     Create("Frame", {
         Name = "OverlayBottomFiller", Parent = OverlayBottom,
-        Size = UDim2.new(1, 0, 0, 10), AnchorPoint = Vector2.new(0, 0),
-        Position = UDim2.new(0, 0, 0, 0), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 60
+        Size = UDim2.new(1, 0, 0, 5), AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 60
     })
 
     local OverlayContent = Create("Frame", {
