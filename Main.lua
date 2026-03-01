@@ -187,7 +187,6 @@ local OverlayHeader = Create("Frame", {
     })
     Create("UICorner", { Parent = OverlayHeader, CornerRadius = UDim.new(0, 10) })
     
-    -- Filler sits at the bottom of the header to square the bottom edge
     Create("Frame", {
         Name = "OverlayHeaderFiller", Parent = OverlayHeader,
         Size = UDim2.new(1, 0, 0, 10), AnchorPoint = Vector2.new(0, 1),
@@ -198,7 +197,7 @@ local OverlayHeader = Create("Frame", {
     local OverlayTitle = Create("TextLabel", {
         Parent = OverlayHeader, Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 61,
-        Font = CurrentFont, TextSize = 12, TextColor3 = Color3.new(1, 1, 1), Text = "ACTIVE BINDS"
+        Font = CurrentFont, TextSize = 12, TextColor3 = Color3.new(1, 1, 1), Text = "Keybinds"
     })
 
     local OverlayBottom = Create("Frame", {
