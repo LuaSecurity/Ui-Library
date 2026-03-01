@@ -173,6 +173,83 @@ function Ui:CreateWindow(Config)
     })
     Create("UICorner", { Parent = MainFrame, CornerRadius = UDim.new(0, 10) })
 
+    local baseSnowflake = Instance.new("Frame")
+    baseSnowflake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    baseSnowflake.BorderSizePixel = 0
+    baseSnowflake.AnchorPoint = Vector2.new(0.5, 0.5)
+    baseSnowflake.ZIndex = 0
+
+    local roundness = Instance.new("UICorner")
+    roundness.CornerRadius = UDim.new(1, 0)
+    roundness.Parent = baseSnowflake
+
+    local snowflakeList = {}
+    local timeAccumulator = 0
+    local targetSpawnRate = 6
+    local randomizer = Random.new()
+
+    local function generateSnowflake()
+        local particleSize = randomizer:NextInteger(4, 6)
+        local initialX = randomizer:NextNumber(0, 1)
+        local descentSpeed = randomizer:NextNumber(0.08, 0.25)
+        local swaySpeed = randomizer:NextNumber(0.5, 1.5)
+        local swayDistance = randomizer:NextNumber(0.01, 0.04)
+        local visualOpacity = randomizer:NextNumber(0.2, 0.8)
+
+        local visualElement = baseSnowflake:Clone()
+        visualElement.Size = UDim2.new(0, particleSize, 0, particleSize)
+        visualElement.Position = UDim2.new(initialX, 0, 0, -particleSize)
+        visualElement.BackgroundTransparency = visualOpacity
+        visualElement.Parent = MainFrame
+
+        local particleData = {
+            element = visualElement,
+            horizontalOrigin = initialX,
+            verticalProgress = 0,
+            pixelSize = particleSize,
+            fallRate = descentSpeed,
+            driftFrequency = swaySpeed,
+            driftMagnitude = swayDistance,
+            lifeTimer = randomizer:NextNumber(0, 100)
+        }
+
+        table.insert(snowflakeList, particleData)
+    end
+
+    local snowConnection
+    snowConnection = RunService.RenderStepped:Connect(function(deltaTime)
+        if not MainFrame or not MainFrame.Parent then
+            if snowConnection then
+                snowConnection:Disconnect()
+            end
+            return
+        end
+
+        timeAccumulator = timeAccumulator + deltaTime
+        local spawnThreshold = 1 / targetSpawnRate
+
+        while timeAccumulator >= spawnThreshold do
+            timeAccumulator = timeAccumulator - spawnThreshold
+            generateSnowflake()
+        end
+
+        for index = #snowflakeList, 1, -1 do
+            local particle = snowflakeList[index]
+            
+            particle.lifeTimer = particle.lifeTimer + deltaTime
+            particle.verticalProgress = particle.verticalProgress + (particle.fallRate * deltaTime)
+
+            local currentHorizontal = particle.horizontalOrigin + (math.sin(particle.lifeTimer * particle.driftFrequency) * particle.driftMagnitude)
+
+            particle.element.Position = UDim2.new(currentHorizontal, 0, particle.verticalProgress, -particle.pixelSize)
+
+            if particle.verticalProgress > 1.1 then
+                particle.element:Destroy()
+                table.remove(snowflakeList, index)
+            end
+        end
+    end)
+
     local BottomSectionHeight = 30
     local BottomResizeHeight = 6
     local BottomTotalHeight = BottomSectionHeight + BottomResizeHeight + 1
@@ -539,7 +616,7 @@ function Ui:CreateWindow(Config)
                 CtxChevron.Rotation = 0
             end
         end)
-        btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {TextColor3 = Theme.Text}):Play() end)
+        btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {TextColor3 = Color3.new(1, 1, 1)}):Play() end)
         btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {TextColor3 = Theme.TextMuted}):Play() end)
     end
 
