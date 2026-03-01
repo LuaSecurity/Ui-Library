@@ -1106,32 +1106,18 @@ local OverlayHeader = Create("Frame", {
                 elementCount = 0
             end
 
-    function Elements:AddLabel(Config)
-        elementCount = elementCount + 1
-        local Text = Config.Text or "Label"
-        local LabelFrame = Create("Frame", { 
-            Parent = Section, 
-            Size = UDim2.new(1, 0, 0, 0), 
-            BackgroundTransparency = 1, 
-            ZIndex = 4,
-            AutomaticSize = Enum.AutomaticSize.Y
-        })
-        Create("UIPadding", { Parent = LabelFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
+            function Elements:AddLabel(Config)
+                elementCount = elementCount + 1
+                local Text = Config.Text or "Label"
+                local LabelFrame = Create("Frame", { Parent = Section, Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, ZIndex = 4 })
+                Create("UIPadding", { Parent = LabelFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
 
-        Create("TextLabel", {
-            Parent = LabelFrame, 
-            Size = UDim2.new(1, 0, 0, 0), 
-            BackgroundTransparency = 1, 
-            ZIndex = 5,
-            Font = CurrentFont, 
-            TextSize = 13, 
-            TextColor3 = Theme.TextMuted, 
-            TextXAlignment = Enum.TextXAlignment.Left, 
-            Text = Capitalize(Text),
-            TextWrapped = true, 
-            AutomaticSize = Enum.AutomaticSize.Y
-        })
-    end    
+                Create("TextLabel", {
+                    Parent = LabelFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5,
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(Text),
+                    TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y
+                })
+            end
 
             function Elements:AddToggle(Config)
                 elementCount = elementCount + 1
