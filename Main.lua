@@ -9,14 +9,8 @@ local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 
-local Username = "anonymous_800"
-if LocalPlayer then
-    if LocalPlayer.DisplayName == LocalPlayer.Name then
-        Username = "@" .. LocalPlayer.Name
-    else
-        Username = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
-    end
-end
+local DName = LocalPlayer and LocalPlayer.DisplayName or "Anonymous"
+local UName = LocalPlayer and LocalPlayer.Name or "anonymous_800"
 
 local Ui = {}
 
@@ -86,11 +80,7 @@ local Theme = {
 }
 
 local NotificationGradients = {
-    white = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 180, 180))}),
-    red = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 75, 75)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 30, 30))}),
-    blue = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 110, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 60, 180))}),
-    green = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 200, 80)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 140, 50))}),
-    yellow = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 210, 50)), ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 150, 20))})
+    blue = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 110, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 60, 180))})
 }
 
 local CurrentFont = Enum.Font.GothamBold
@@ -181,7 +171,7 @@ function Ui:CreateWindow(Config)
     })
     Create("UICorner", { Parent = OverlayFrame, CornerRadius = UDim.new(0, 10) })
 
-local OverlayHeader = Create("Frame", {
+    local OverlayHeader = Create("Frame", {
         Name = "OverlayHeader", Parent = OverlayFrame,
         Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = Theme.Panel, BorderSizePixel = 0, ZIndex = 60
     })
@@ -197,7 +187,7 @@ local OverlayHeader = Create("Frame", {
     local OverlayTitle = Create("TextLabel", {
         Parent = OverlayHeader, Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 61,
-        Font = CurrentFont, TextSize = 12, TextColor3 = Color3.new(1, 1, 1), Text = "Keybinds"
+        Font = CurrentFont, TextSize = 12, TextColor3 = Color3.new(1, 1, 1), Text = "Keybind List"
     })
 
     local OverlayBottom = Create("Frame", {
@@ -227,7 +217,22 @@ local OverlayHeader = Create("Frame", {
 
     local ActiveBindsData = {}
 
+    local WindowObj = { 
+        Tabs = {}, 
+        CurrentTab = nil, 
+        Flags = {}, 
+        Elements = {},
+        ToggleKey = Enum.KeyCode.RightShift,
+        DropdownContainers = {},
+        TabCount = 0,
+        KeyMap = {}
+    }
+
     local function UpdateOverlayVisibility()
+        if WindowObj.Flags["ShowKeybindList"] == false then
+            OverlayFrame.Visible = false
+            return
+        end
         local hasBinds = false
         for _ in pairs(ActiveBindsData) do
             hasBinds = true
@@ -256,13 +261,15 @@ local OverlayHeader = Create("Frame", {
             Create("TextLabel", {
                 Parent = row, Size = UDim2.new(0.6, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
                 BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
-                TextColor3 = Theme.Text, Text = Capitalize(data.Name), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 62
+                TextColor3 = Color3.new(1, 1, 1), Text = Capitalize(data.Name), 
+                TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 62
             })
 
             Create("TextLabel", {
                 Parent = row, Size = UDim2.new(0.4, 0, 1, 0), Position = UDim2.new(0.6, 0, 0, 0),
                 BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
-                TextColor3 = Theme.Accent, Text = "[" .. Capitalize(data.Mode) .. "]", TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 62
+                TextColor3 = Theme.Accent, Text = "[" .. data.Key .. "] [" .. Capitalize(data.Mode) .. "]", 
+                TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 62
             })
         end
 
@@ -326,10 +333,10 @@ local OverlayHeader = Create("Frame", {
 
     local snowflakeListOverlay = {}
     local timeAccumulatorOverlay = 0
-    local targetSpawnRateOverlay = 4
+    local targetSpawnRateOverlay = 6
 
     local function generateSnowflakeOverlay()
-        local particleSize = randomizer:NextInteger(2, 4)
+        local particleSize = randomizer:NextInteger(4, 6)
         local initialX = randomizer:NextNumber(0, 1)
         local descentSpeed = randomizer:NextNumber(0.08, 0.25)
         local swaySpeed = randomizer:NextNumber(0.5, 1.5)
@@ -400,13 +407,18 @@ local OverlayHeader = Create("Frame", {
                 generateSnowflakeOverlay()
             end
 
+            local overlayHeight = OverlayFrame.AbsoluteSize.Y > 0 and OverlayFrame.AbsoluteSize.Y or 100
+            local overlayWidth = OverlayFrame.AbsoluteSize.X > 0 and OverlayFrame.AbsoluteSize.X or 200
+            local speedMult = 600 / overlayHeight
+            local swayMult = 750 / overlayWidth
+
             for index = #snowflakeListOverlay, 1, -1 do
                 local particle = snowflakeListOverlay[index]
                 
                 particle.lifeTimer = particle.lifeTimer + deltaTime
-                particle.verticalProgress = particle.verticalProgress + (particle.fallRate * deltaTime)
+                particle.verticalProgress = particle.verticalProgress + (particle.fallRate * deltaTime * speedMult)
 
-                local currentHorizontal = particle.horizontalOrigin + (math.sin(particle.lifeTimer * particle.driftFrequency) * particle.driftMagnitude)
+                local currentHorizontal = particle.horizontalOrigin + (math.sin(particle.lifeTimer * particle.driftFrequency) * particle.driftMagnitude * swayMult)
 
                 particle.element.Position = UDim2.new(currentHorizontal, 0, particle.verticalProgress, -particle.pixelSize)
 
@@ -650,11 +662,29 @@ local OverlayHeader = Create("Frame", {
     local MainTitleGradient = Create("UIGradient", { Parent = TitleLabel })
     AnimateSeamlessGradient(MainTitleGradient)
 
-    Create("TextLabel", {
-        Parent = Header, Size = UDim2.new(0, 150, 1, 0), Position = UDim2.new(1, -165, 0, 0),
-        BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 11,
-        Font = CurrentFont, TextSize = 12, TextColor3 = Theme.TextDark, Text = Username
+    local UserContainer = Create("Frame", {
+        Parent = Header, Size = UDim2.new(0, 200, 1, 0), Position = UDim2.new(1, -215, 0, 0), BackgroundTransparency = 1
     })
+    Create("UIListLayout", {
+        Parent = UserContainer, FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Right, VerticalAlignment = Enum.VerticalAlignment.Center,
+        Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder
+    })
+    if DName == UName then
+        Create("TextLabel", {
+            Parent = UserContainer, LayoutOrder = 1, BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
+            TextColor3 = Theme.TextDark, Text = "@" .. UName, AutomaticSize = Enum.AutomaticSize.XY
+        })
+    else
+        Create("TextLabel", {
+            Parent = UserContainer, LayoutOrder = 1, BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
+            TextColor3 = Theme.TextDark, Text = DName, AutomaticSize = Enum.AutomaticSize.XY
+        })
+        Create("TextLabel", {
+            Parent = UserContainer, LayoutOrder = 2, BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
+            TextColor3 = Theme.TextDark, Text = "(@" .. UName .. ")", AutomaticSize = Enum.AutomaticSize.XY
+        })
+    end
 
     Create("Frame", { Parent = MainFrame, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 60), BackgroundColor3 = Theme.Divider, BorderSizePixel = 0, ZIndex = 10 })
 
@@ -716,7 +746,7 @@ local OverlayHeader = Create("Frame", {
     end)
 
     local function ShowTooltip(text)
-        TooltipText.Text = Capitalize(text)
+        TooltipText.Text = text
         TooltipGui.Visible = true
         TooltipGui.BackgroundTransparency = 1
         TooltipText.TextTransparency = 1
@@ -768,7 +798,7 @@ local OverlayHeader = Create("Frame", {
     local CtxModeListLayout = Create("UIListLayout", { Parent = CtxModeList, SortOrder = 2 })
 
     local ActiveContextConfig = nil
-    local Modes = {"Always", "Toggle", "Hold", "Click"}
+    local Modes = {"Always", "Click", "Hold", "Toggle"}
 
     for _, mode in ipairs(Modes) do
         local btn = Create("TextButton", {
@@ -816,11 +846,20 @@ local OverlayHeader = Create("Frame", {
 
     UserInputService.InputBegan:Connect(function(input)
         if isBinding and input.UserInputType == Enum.UserInputType.Keyboard then
+            local newKey = input.KeyCode
+            if newKey ~= Enum.KeyCode.Escape and newKey ~= Enum.KeyCode.Backspace then
+                if ActiveContextConfig and WindowObj.KeyMap[newKey] and WindowObj.KeyMap[newKey] ~= ActiveContextConfig.Name then
+                    WindowObj:Notify({Title = "Keybind Taken", Content = newKey.Name .. " is already assigned to " .. WindowObj.KeyMap[newKey], Duration = 3, Type = "blue"})
+                    return
+                end
+            end
             isBinding = false
-            if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace then
-                ActiveContextConfig.Key = Enum.KeyCode.Unknown
-            else
-                ActiveContextConfig.Key = input.KeyCode
+            if ActiveContextConfig.Key ~= Enum.KeyCode.Unknown then
+                WindowObj.KeyMap[ActiveContextConfig.Key] = nil
+            end
+            ActiveContextConfig.Key = (newKey == Enum.KeyCode.Escape or newKey == Enum.KeyCode.Backspace) and Enum.KeyCode.Unknown or newKey
+            if ActiveContextConfig.Key ~= Enum.KeyCode.Unknown then
+                WindowObj.KeyMap[ActiveContextConfig.Key] = ActiveContextConfig.Name
             end
             CtxKeybindBtn.Text = Capitalize(ActiveContextConfig.Key == Enum.KeyCode.Unknown and "None" or ActiveContextConfig.Key.Name)
             TweenService:Create(CtxKeybindBtn, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
@@ -858,16 +897,6 @@ local OverlayHeader = Create("Frame", {
         ContextMenu.Position = UDim2.new(0, safeX, 0, safeY)
         ModalOverlay.Visible = true
     end
-
-    local WindowObj = { 
-        Tabs = {}, 
-        CurrentTab = nil, 
-        Flags = {}, 
-        Elements = {},
-        ToggleKey = Enum.KeyCode.RightShift,
-        DropdownContainers = {},
-        TabCount = 0
-    }
 
     local oldClose = CloseMenus
     local function CloseMenus()
@@ -909,8 +938,7 @@ local OverlayHeader = Create("Frame", {
     function WindowObj:Notify(Config)
         local Content = Config.Content or Config.Title or "Notification"
         local Duration = Config.Duration or 3
-        local NotifType = Config.Type and string.lower(Config.Type) or "blue"
-        local CurrentGradient = NotificationGradients[NotifType] or NotificationGradients.blue
+        local CurrentGradient = NotificationGradients.blue
         
         local textSize = TextService:GetTextSize(Content, 12, CurrentFont, Vector2.new(9999, 20))
         local notifWidth = math.max(200, textSize.X + 30)
@@ -928,7 +956,7 @@ local OverlayHeader = Create("Frame", {
         local DescLbl = Create("TextLabel", {
             Parent = ContentWrapper, Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 12, 0, 8),
             BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
-            TextColor3 = Theme.Text, Text = Capitalize(Content), TextXAlignment = Enum.TextXAlignment.Left,
+            TextColor3 = Theme.Text, Text = Content, TextXAlignment = Enum.TextXAlignment.Left,
             ZIndex = 5002
         })
 
@@ -962,7 +990,7 @@ local OverlayHeader = Create("Frame", {
         if not Name or Name == "" then return end
         local success, json = pcall(function() return HttpService:JSONEncode(self.Flags) end)
         if not success then
-            if not Silent then self:Notify({Title = "Error", Content = "Failed to encode config.", Duration = 3, Type = "red"}) end
+            if not Silent then self:Notify({Title = "Error", Content = "Failed to encode config.", Duration = 3, Type = "blue"}) end
             return
         end
         local saveSuccess = pcall(function()
@@ -970,9 +998,9 @@ local OverlayHeader = Create("Frame", {
             writefile(ConfigFolder .. "/" .. Name .. ".cfg", json)
         end)
         if saveSuccess then
-            if not Silent then self:Notify({Title = "Success", Content = "Config saved: " .. Name, Duration = 3, Type = "green"}) end
+            if not Silent then self:Notify({Title = "Success", Content = "Config saved: " .. Name, Duration = 3, Type = "blue"}) end
         else
-            if not Silent then self:Notify({Title = "Error", Content = "Failed to write config file.", Duration = 3, Type = "red"}) end
+            if not Silent then self:Notify({Title = "Error", Content = "Failed to write config file.", Duration = 3, Type = "blue"}) end
         end
     end
 
@@ -986,12 +1014,12 @@ local OverlayHeader = Create("Frame", {
             return nil
         end)
         if not readSuccess or not data then
-            self:Notify({Title = "Error", Content = "Config file not found or unreadable.", Duration = 3, Type = "red"})
+            self:Notify({Title = "Error", Content = "Config file not found or unreadable.", Duration = 3, Type = "blue"})
             return
         end
         local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(data) end)
         if not decodeSuccess or type(decoded) ~= "table" then
-            self:Notify({Title = "Error", Content = "Config file is corrupted.", Duration = 3, Type = "red"})
+            self:Notify({Title = "Error", Content = "Config file is corrupted.", Duration = 3, Type = "blue"})
             return
         end
         for flag, value in pairs(decoded) do
@@ -1011,9 +1039,9 @@ local OverlayHeader = Create("Frame", {
             end
         end)
         if delSuccess then
-            self:Notify({Title = "Success", Content = "Config deleted: " .. Name, Duration = 3, Type = "yellow"})
+            self:Notify({Title = "Success", Content = "Config deleted: " .. Name, Duration = 3, Type = "blue"})
         else
-            self:Notify({Title = "Error", Content = "Failed to delete config.", Duration = 3, Type = "red"})
+            self:Notify({Title = "Error", Content = "Failed to delete config.", Duration = 3, Type = "blue"})
         end
     end
 
@@ -1055,10 +1083,16 @@ local OverlayHeader = Create("Frame", {
             Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = 1, ZIndex = 2, ImageColor3 = Theme.TextMuted
         })
 
+        if IconId == "phosphor-toolbox-bold" then
+            TabIcon.Size = UDim2.new(0, 18, 0, 18)
+        end
+
         local IconData = Icons[IconId]
-        TabIcon.Image = IconData.Image
-        TabIcon.ImageRectOffset = IconData.ImageRectOffset
-        TabIcon.ImageRectSize = IconData.ImageRectSize
+        if IconData then
+            TabIcon.Image = IconData.Image
+            TabIcon.ImageRectOffset = IconData.ImageRectOffset
+            TabIcon.ImageRectSize = IconData.ImageRectSize
+        end
         
         local BtnText = Create("TextLabel", {
             Parent = TabBtn, Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 34, 0, 0), BackgroundTransparency = 1, ZIndex = 2,
@@ -1114,7 +1148,7 @@ local OverlayHeader = Create("Frame", {
 
                 Create("TextLabel", {
                     Parent = LabelFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Capitalize(Text),
+                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Text,
                     TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y
                 })
             end
@@ -1129,11 +1163,11 @@ local OverlayHeader = Create("Frame", {
                 local Tooltip = Config.Tooltip
                 local Callback = Config.Callback or function() end
 
-                local ToggleData = { Key = Enum.KeyCode.Unknown, Mode = "Toggle" }
+                local ToggleData = { Name = TglName, Key = Enum.KeyCode.Unknown, Mode = "Toggle" }
 
                 local function UpdateKeybindOverlay(state)
                     if state and ToggleData.Key ~= Enum.KeyCode.Unknown then
-                        ActiveBindsData[Flag] = { Name = TglName, Mode = ToggleData.Mode }
+                        ActiveBindsData[Flag] = { Name = TglName, Mode = ToggleData.Mode, Key = ToggleData.Key.Name }
                     else
                         ActiveBindsData[Flag] = nil
                     end
@@ -1178,8 +1212,14 @@ local OverlayHeader = Create("Frame", {
                     TipIcon.Image = infoData.Image
                     TipIcon.ImageRectOffset = infoData.ImageRectOffset
                     TipIcon.ImageRectSize = infoData.ImageRectSize
-                    TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
-                    TipIcon.MouseLeave:Connect(function() HideTooltip() end)
+                    TipIcon.MouseEnter:Connect(function() 
+                        ShowTooltip(Tooltip) 
+                        TweenService:Create(TipIcon, TweenInfo.new(0.2), {ImageColor3 = Theme.Accent}):Play()
+                    end)
+                    TipIcon.MouseLeave:Connect(function() 
+                        HideTooltip() 
+                        TweenService:Create(TipIcon, TweenInfo.new(0.2), {ImageColor3 = Theme.TextMuted}):Play()
+                    end)
                 end
 
                 local Switch = Create("Frame", {
@@ -1221,11 +1261,13 @@ local OverlayHeader = Create("Frame", {
                 end
 
                 local function SetManualValue(val)
+                    if ToggleData.Mode == "Always" then val = true end
                     ManualState = val
                     UpdateToggle()
                 end
 
                 local function SetKeybindValue(val)
+                    if ToggleData.Mode == "Always" then return end
                     KeybindState = val
                     UpdateToggle()
                 end
@@ -1241,8 +1283,14 @@ local OverlayHeader = Create("Frame", {
 
                 UserInputService.InputBegan:Connect(function(input, gp)
                     if not gp and input.KeyCode == ToggleData.Key and ToggleData.Key ~= Enum.KeyCode.Unknown then
-                        if ToggleData.Mode == "Toggle" or ToggleData.Mode == "Click" then
+                        if ToggleData.Mode == "Toggle" then
                             SetKeybindValue(not KeybindState)
+                        elseif ToggleData.Mode == "Click" then
+                            task.spawn(function()
+                                Callback(true)
+                                task.wait()
+                                Callback(false)
+                            end)
                         elseif ToggleData.Mode == "Hold" then
                             SetKeybindValue(true)
                         end
@@ -1258,12 +1306,23 @@ local OverlayHeader = Create("Frame", {
                 end)
 
                 WindowObj.Elements[Flag] = { 
+                    Type = "Toggle",
                     SetValue = function(val) SetManualValue(val) end,
-                    SetKey = function(keyName) ToggleData.Key = Enum.KeyCode[keyName] or Enum.KeyCode.Unknown; ToggleData.UpdateSave() end,
-                    SetMode = function(modeStr) ToggleData.Mode = modeStr; ToggleData.UpdateSave() end
+                    SetKey = function(keyName) 
+                        local newKey = Enum.KeyCode[keyName] or Enum.KeyCode.Unknown
+                        if ToggleData.Key ~= Enum.KeyCode.Unknown then WindowObj.KeyMap[ToggleData.Key] = nil end
+                        ToggleData.Key = newKey
+                        if newKey ~= Enum.KeyCode.Unknown then WindowObj.KeyMap[newKey] = ToggleData.Name end
+                        ToggleData.UpdateSave() 
+                    end,
+                    SetMode = function(modeStr) 
+                        ToggleData.Mode = modeStr
+                        if modeStr == "Always" then SetManualValue(true) end
+                        ToggleData.UpdateSave() 
+                    end
                 }
-                WindowObj.Elements[Flag.."_Key"] = { SetValue = function(val) ToggleData.Key = Enum.KeyCode[val] or Enum.KeyCode.Unknown; ToggleData.UpdateSave() end }
-                WindowObj.Elements[Flag.."_Mode"] = { SetValue = function(val) ToggleData.Mode = val; ToggleData.UpdateSave() end }
+                WindowObj.Elements[Flag.."_Key"] = { SetValue = function(val) WindowObj.Elements[Flag].SetKey(val) end }
+                WindowObj.Elements[Flag.."_Mode"] = { SetValue = function(val) WindowObj.Elements[Flag].SetMode(val) end }
             end
 
             function Elements:AddDropdown(Config)
@@ -1298,13 +1357,19 @@ local OverlayHeader = Create("Frame", {
                     TipIcon.Image = infoData.Image
                     TipIcon.ImageRectOffset = infoData.ImageRectOffset
                     TipIcon.ImageRectSize = infoData.ImageRectSize
-                    TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
-                    TipIcon.MouseLeave:Connect(function() HideTooltip() end)
+                    TipIcon.MouseEnter:Connect(function() 
+                        ShowTooltip(Tooltip) 
+                        TweenService:Create(TipIcon, TweenInfo.new(0.2), {ImageColor3 = Theme.Accent}):Play()
+                    end)
+                    TipIcon.MouseLeave:Connect(function() 
+                        HideTooltip() 
+                        TweenService:Create(TipIcon, TweenInfo.new(0.2), {ImageColor3 = Theme.TextMuted}):Play()
+                    end)
                 end
 
                 local MainBtn = Create("TextButton", {
                     Parent = DropFrame, Size = UDim2.new(1, 0, 0, 30), Position = UDim2.new(0, 0, 0, 20), BackgroundColor3 = Theme.Element, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = Capitalize(CurrentValue), AutoButtonColor = false, TextXAlignment = Enum.TextXAlignment.Left
+                    Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, Text = CurrentValue, AutoButtonColor = false, TextXAlignment = Enum.TextXAlignment.Left
                 })
                 Create("UICorner", { Parent = MainBtn, CornerRadius = UDim.new(0, 6) })
                 Create("UIPadding", { Parent = MainBtn, PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) })
@@ -1332,7 +1397,7 @@ local OverlayHeader = Create("Frame", {
                         local isSelected = (option == CurrentValue)
                         local OptBtn = Create("TextButton", {
                             Parent = ListContainer, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1, ZIndex = 7,
-                            Font = CurrentFont, TextSize = 12, TextColor3 = isSelected and Color3.new(1, 1, 1) or Theme.TextMuted, Text = Capitalize(option)
+                            Font = CurrentFont, TextSize = 12, TextColor3 = isSelected and Color3.new(1, 1, 1) or Theme.TextMuted, Text = option
                         })
                         OptBtn.MouseEnter:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = Color3.new(1, 1, 1)}):Play() end)
                         OptBtn.MouseLeave:Connect(function() TweenService:Create(OptBtn, TweenInfo.new(0.15), {TextColor3 = (option == CurrentValue) and Color3.new(1, 1, 1) or Theme.TextMuted}):Play() end)
@@ -1345,7 +1410,7 @@ local OverlayHeader = Create("Frame", {
 
                 local function SetValue(val)
                     CurrentValue = val
-                    MainBtn.Text = Capitalize(val)
+                    MainBtn.Text = val
                     WindowObj.Flags[Flag] = val
                     BuildOptions(Options)
                     Callback(val)
@@ -1420,8 +1485,14 @@ local OverlayHeader = Create("Frame", {
                     TipIcon.Image = infoData.Image
                     TipIcon.ImageRectOffset = infoData.ImageRectOffset
                     TipIcon.ImageRectSize = infoData.ImageRectSize
-                    TipIcon.MouseEnter:Connect(function() ShowTooltip(Tooltip) end)
-                    TipIcon.MouseLeave:Connect(function() HideTooltip() end)
+                    TipIcon.MouseEnter:Connect(function() 
+                        ShowTooltip(Tooltip) 
+                        TweenService:Create(TipIcon, TweenInfo.new(0.2), {ImageColor3 = Theme.Accent}):Play()
+                    end)
+                    TipIcon.MouseLeave:Connect(function() 
+                        HideTooltip() 
+                        TweenService:Create(TipIcon, TweenInfo.new(0.2), {ImageColor3 = Theme.TextMuted}):Play()
+                    end)
                 end
 
                 local ValueDisplay = Create("TextLabel", {
@@ -1500,7 +1571,7 @@ local OverlayHeader = Create("Frame", {
 
                 local Btn = Create("TextButton", {
                     Parent = ButtonFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Theme.Element, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = BaseTextColor, Text = Capitalize(BtnName), AutoButtonColor = false
+                    Font = CurrentFont, TextSize = 13, TextColor3 = BaseTextColor, Text = BtnName, AutoButtonColor = false
                 })
                 Create("UICorner", { Parent = Btn, CornerRadius = UDim.new(0, 6) })
 
@@ -1585,8 +1656,22 @@ local OverlayHeader = Create("Frame", {
 
                 UserInputService.InputBegan:Connect(function(input)
                     if Binding and input.UserInputType == Enum.UserInputType.Keyboard then
+                        local newKey = input.KeyCode
+                        if newKey ~= Enum.KeyCode.Escape and newKey ~= Enum.KeyCode.Backspace then
+                            if WindowObj.KeyMap[newKey] and WindowObj.KeyMap[newKey] ~= KeyName then
+                                WindowObj:Notify({Title = "Keybind Taken", Content = newKey.Name .. " is already assigned to " .. WindowObj.KeyMap[newKey], Duration = 3, Type = "blue"})
+                                return
+                            end
+                        end
                         Binding = false
-                        CurrentKey = input.KeyCode
+                        if CurrentKey ~= Enum.KeyCode.Unknown then
+                            WindowObj.KeyMap[CurrentKey] = nil
+                        end
+                        CurrentKey = (newKey == Enum.KeyCode.Escape or newKey == Enum.KeyCode.Backspace) and Enum.KeyCode.Unknown or newKey
+                        if CurrentKey ~= Enum.KeyCode.Unknown then
+                            WindowObj.KeyMap[CurrentKey] = KeyName
+                        end
+                        
                         KeyIndicatorText.Text = Capitalize(CurrentKey.Name)
                         TweenService:Create(KeyNameLabel, TweenInfo.new(0.2), {TextColor3 = Theme.Text}):Play()
                         TweenService:Create(KeyIndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Panel}):Play()
@@ -1599,7 +1684,9 @@ local OverlayHeader = Create("Frame", {
                 local function SetValue(val)
                     local key = Enum.KeyCode[val]
                     if not key then return end
+                    if CurrentKey ~= Enum.KeyCode.Unknown then WindowObj.KeyMap[CurrentKey] = nil end
                     CurrentKey = key
+                    if CurrentKey ~= Enum.KeyCode.Unknown then WindowObj.KeyMap[CurrentKey] = KeyName end
                     WindowObj.Flags[Flag] = CurrentKey.Name
                     KeyIndicatorText.Text = Capitalize(CurrentKey.Name)
                     Callback(CurrentKey)
@@ -1687,6 +1774,15 @@ local OverlayHeader = Create("Frame", {
         pcall(function() writefile(CoreSettingsFile, HttpService:JSONEncode(CoreSettings)) end)
     end
 
+    UiSettings:AddToggle({ 
+        Name = "Keybind List", 
+        Default = true, 
+        Flag = "ShowKeybindList", 
+        Callback = function(state) 
+            UpdateOverlayVisibility() 
+        end 
+    })
+
     UiSettings:AddKeybind({
         Name = "Toggle Menu", 
         Default = Enum.KeyCode.RightShift,
@@ -1698,7 +1794,14 @@ local OverlayHeader = Create("Frame", {
     UiSettings:AddButton({ 
         Name = "Eject", 
         Danger = true, 
-        Callback = function() Ui:Unload() end 
+        Callback = function()
+            for flag, element in pairs(WindowObj.Elements) do
+                if element.Type == "Toggle" and WindowObj.Flags[flag] == true then
+                    pcall(function() element.SetValue(false) end)
+                end
+            end
+            Ui:Unload() 
+        end 
     })
 
     local AutoLoadDrop = CfgRight:AddDropdown({
@@ -1721,7 +1824,7 @@ local OverlayHeader = Create("Frame", {
             local isSelected = (CurrentConfigName == cfg)
             local btnText = isSelected and ("✓  " .. cfg) or ("     " .. cfg)
             CfgLeft:AddButton({ 
-                Name = Capitalize(btnText), 
+                Name = btnText, 
                 Selected = isSelected,
                 Callback = function() 
                     CurrentConfigName = cfg 
@@ -1765,6 +1868,11 @@ local OverlayHeader = Create("Frame", {
         Callback = function() 
             if CurrentConfigName ~= "" then 
                 WindowObj:DeleteConfig(CurrentConfigName)
+                if CoreSettings.AutoLoad == CurrentConfigName then
+                    CoreSettings.AutoLoad = "None"
+                    SaveCore()
+                    AutoLoadDrop.SetValue("None")
+                end
                 CurrentConfigName = ""
                 RefreshConfigs() 
             end 
