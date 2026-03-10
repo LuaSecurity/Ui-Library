@@ -251,6 +251,7 @@ function Ui:CreateWindow(Config)
         end
 
         local count = 0
+        local maxWidth = 200
         for _, data in pairs(ActiveBindsData) do
             count = count + 1
             local row = Create("Frame", {
@@ -258,11 +259,11 @@ function Ui:CreateWindow(Config)
                 BackgroundTransparency = 1, ZIndex = 61
             })
             
-            Create("TextLabel", {
+            local nameLabel = Create("TextLabel", {
                 Parent = row, Size = UDim2.new(0.6, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
                 BackgroundTransparency = 1, Font = CurrentFont, TextSize = 12,
                 TextColor3 = Color3.new(1, 1, 1), Text = Capitalize(data.Name), 
-                TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 62
+                TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 62, AutomaticSize = Enum.AutomaticSize.X
             })
 
             Create("TextLabel", {
@@ -271,10 +272,17 @@ function Ui:CreateWindow(Config)
                 TextColor3 = Theme.Accent, Text = "[" .. data.Key .. "] [" .. Capitalize(data.Mode) .. "]", 
                 TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 62
             })
+            
+            local nameWidth = nameLabel.TextBounds.X
+            local keyWidth = #data.Key * 8 + #data.Mode * 8 + 20
+            local requiredWidth = nameWidth + keyWidth + 30
+            if requiredWidth > maxWidth then
+                maxWidth = requiredWidth
+            end
         end
 
         local targetHeight = 30 + 10 + (count > 0 and (count * 22 + 10) or 10)
-        OverlayFrame.Size = UDim2.new(0, 200, 0, targetHeight)
+        OverlayFrame.Size = UDim2.new(0, maxWidth, 0, targetHeight)
         UpdateOverlayVisibility()
     end
 
@@ -798,7 +806,7 @@ function Ui:CreateWindow(Config)
     local CtxModeListLayout = Create("UIListLayout", { Parent = CtxModeList, SortOrder = 2 })
 
     local ActiveContextConfig = nil
-    local Modes = {"Always", "Click", "Hold", "Toggle"}
+    local Modes = {"Hold", "Toggle"}
 
     for _, mode in ipairs(Modes) do
         local btn = Create("TextButton", {
@@ -1117,14 +1125,18 @@ function Ui:CreateWindow(Config)
             Create("UIPadding", { Parent = Section, PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10) })
 
             local elementCount = 0
+            local MinSectionHeight = 50
+            local MaxSectionHeight = 500
 
             SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
                 local contentHeight = SectionLayout.AbsoluteContentSize.Y + 20
-                if elementCount > 6 then
-                    Section.Size = UDim2.new(1, 0, 0, 320)
+                local targetHeight = math.max(MinSectionHeight, math.min(contentHeight, MaxSectionHeight))
+                
+                if contentHeight > MaxSectionHeight then
+                    Section.Size = UDim2.new(1, 0, 0, MaxSectionHeight)
                     Section.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
                 else
-                    Section.Size = UDim2.new(1, 0, 0, contentHeight)
+                    Section.Size = UDim2.new(1, 0, 0, targetHeight)
                     Section.CanvasSize = UDim2.new(0, 0, 0, 0)
                 end
             end)
@@ -1143,14 +1155,172 @@ function Ui:CreateWindow(Config)
             function Elements:AddLabel(Config)
                 elementCount = elementCount + 1
                 local Text = Config.Text or "Label"
-                local LabelFrame = Create("Frame", { Parent = Section, Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, ZIndex = 4 })
-                Create("UIPadding", { Parent = LabelFrame, PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), PaddingLeft = UDim.new(0, 20), PaddingRight = UDim.new(0, 20) })
+                local TextColor = Config.TextColor or Theme.TextMuted
+                local Font = Config.Font or CurrentFont
+                local TextSize = Config.TextSize or 13
+                local Icon = Config.Icon or nil
+                local IconColor = Config.IconColor or Theme.Accent
+                local TextXAlignment = Config.TextXAlignment or Enum.TextXAlignment.Left
+                local TextYAlignment = Config.TextYAlignment or Enum.TextYAlignment.Center
+                local Padding = Config.Padding or { Top = 5, Bottom = 5, Left = 20, Right = 20 }
+                local IconPadding = Config.IconPadding or 8
+                local DynamicSize = Config.DynamicSize ~= false
+                local MinWidth = Config.MinWidth or 0
+                local MaxWidth = Config.MaxWidth or 0
+                local MinHeight = Config.MinHeight or 0
+                local MaxHeight = Config.MaxHeight or 0
 
-                Create("TextLabel", {
-                    Parent = LabelFrame, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, ZIndex = 5,
-                    Font = CurrentFont, TextSize = 13, TextColor3 = Theme.TextMuted, TextXAlignment = Enum.TextXAlignment.Left, Text = Text,
-                    TextWrapped = true, AutomaticSize = Enum.AutomaticSize.Y
+                local LabelFrame = Create("Frame", { 
+                    Parent = Section, 
+                    Size = UDim2.new(1, 0, 0, 0), 
+                    BackgroundTransparency = 1, 
+                    ZIndex = 4, 
+                    AutomaticSize = Enum.AutomaticSize.Y 
                 })
+                Create("UIPadding", { 
+                    Parent = LabelFrame, 
+                    PaddingTop = UDim.new(0, Padding.Top), 
+                    PaddingBottom = UDim.new(0, Padding.Bottom), 
+                    PaddingLeft = UDim.new(0, Padding.Left), 
+                    PaddingRight = UDim.new(0, Padding.Right) 
+                })
+
+                local ContentContainer
+                if Icon then
+                    ContentContainer = Create("Frame", {
+                        Parent = LabelFrame,
+                        Size = UDim2.new(1, 0, 0, 0),
+                        BackgroundTransparency = 1,
+                        ZIndex = 5,
+                        AutomaticSize = Enum.AutomaticSize.XY
+                    })
+                    Create("UIListLayout", {
+                        Parent = ContentContainer,
+                        FillDirection = Enum.FillDirection.Horizontal,
+                        VerticalAlignment = TextYAlignment,
+                        Padding = UDim.new(0, IconPadding),
+                        SortOrder = Enum.SortOrder.LayoutOrder
+                    })
+
+                    local IconLabel = Create("ImageLabel", {
+                        Parent = ContentContainer,
+                        Size = UDim2.new(0, TextSize + 2, 0, TextSize + 2),
+                        BackgroundTransparency = 1,
+                        ZIndex = 5,
+                        LayoutOrder = 1,
+                        ImageColor3 = IconColor,
+                        ScaleType = Enum.ScaleType.Fit
+                    })
+                    if Icons[Icon] then
+                        IconLabel.Image = Icons[Icon].Image
+                        IconLabel.ImageRectOffset = Icons[Icon].ImageRectOffset
+                        IconLabel.ImageRectSize = Icons[Icon].ImageRectSize
+                    end
+                else
+                    ContentContainer = LabelFrame
+                end
+
+                local function CalculateTextBounds(text, widthConstraint)
+                    local success, result = pcall(function()
+                        return TextService:GetTextSize(
+                            text,
+                            TextSize,
+                            Font,
+                            Vector2.new(widthConstraint > 0 and widthConstraint or 1000, math.huge)
+                        )
+                    end)
+                    if success then
+                        return result
+                    else
+                        return Vector2.new(100, 20)
+                    end
+                end
+
+                local LabelText = Create("TextLabel", {
+                    Parent = Icon and ContentContainer or LabelFrame,
+                    Size = UDim2.new(1, 0, 0, 0),
+                    BackgroundTransparency = 1,
+                    ZIndex = 5,
+                    LayoutOrder = Icon and 2 or 1,
+                    Font = Font,
+                    TextSize = TextSize,
+                    TextColor3 = TextColor,
+                    TextXAlignment = TextXAlignment,
+                    TextYAlignment = TextYAlignment,
+                    Text = Text,
+                    TextWrapped = true,
+                    AutomaticSize = Enum.AutomaticSize.XY
+                })
+
+                local LabelAPI = {}
+
+                function LabelAPI:UpdateSize()
+                    if not DynamicSize then return end
+
+                    local contentWidth = LabelText.TextBounds.X
+                    local contentHeight = LabelText.TextBounds.Y
+
+                    local totalPaddingX = Padding.Left + Padding.Right
+                    local totalPaddingY = Padding.Top + Padding.Bottom
+
+                    local iconWidth = 0
+                    if Icon then
+                        iconWidth = TextSize + 2 + IconPadding
+                    end
+
+                    local finalWidth = contentWidth + totalPaddingX + iconWidth
+                    local finalHeight = contentHeight + totalPaddingY
+
+                    if MinWidth > 0 then
+                        finalWidth = math.max(finalWidth, MinWidth)
+                    end
+                    if MinHeight > 0 then
+                        finalHeight = math.max(finalHeight, MinHeight)
+                    end
+
+                    if MaxWidth > 0 then
+                        finalWidth = math.min(finalWidth, MaxWidth)
+                        LabelText.TextWrapped = true
+                    end
+                    if MaxHeight > 0 then
+                        finalHeight = math.min(finalHeight, MaxHeight)
+                    end
+
+                    LabelFrame.Size = UDim2.new(1, 0, 0, finalHeight)
+                end
+
+                function LabelAPI:SetText(newText)
+                    LabelText.Text = newText
+                    task.defer(function()
+                        LabelAPI:UpdateSize()
+                    end)
+                end
+
+                function LabelAPI:GetText()
+                    return LabelText.Text
+                end
+
+                function LabelAPI:SetTextColor(color3)
+                    LabelText.TextColor3 = color3
+                end
+
+                function LabelAPI:GetSize()
+                    return LabelFrame.AbsoluteSize
+                end
+
+                function LabelAPI:GetTextBounds()
+                    return LabelText.TextBounds
+                end
+
+                task.defer(function()
+                    LabelAPI:UpdateSize()
+                end)
+
+                LabelText:GetPropertyChangedSignal("Text"):Connect(function()
+                    LabelAPI:UpdateSize()
+                end)
+
+                return LabelAPI
             end
 
             function Elements:AddToggle(Config)
@@ -1261,13 +1431,11 @@ function Ui:CreateWindow(Config)
                 end
 
                 local function SetManualValue(val)
-                    if ToggleData.Mode == "Always" then val = true end
                     ManualState = val
                     UpdateToggle()
                 end
 
                 local function SetKeybindValue(val)
-                    if ToggleData.Mode == "Always" then return end
                     KeybindState = val
                     UpdateToggle()
                 end
@@ -1285,12 +1453,6 @@ function Ui:CreateWindow(Config)
                     if not gp and input.KeyCode == ToggleData.Key and ToggleData.Key ~= Enum.KeyCode.Unknown then
                         if ToggleData.Mode == "Toggle" then
                             SetKeybindValue(not KeybindState)
-                        elseif ToggleData.Mode == "Click" then
-                            task.spawn(function()
-                                Callback(true)
-                                task.wait()
-                                Callback(false)
-                            end)
                         elseif ToggleData.Mode == "Hold" then
                             SetKeybindValue(true)
                         end
@@ -1317,7 +1479,6 @@ function Ui:CreateWindow(Config)
                     end,
                     SetMode = function(modeStr) 
                         ToggleData.Mode = modeStr
-                        if modeStr == "Always" then SetManualValue(true) end
                         ToggleData.UpdateSave() 
                     end
                 }
@@ -1822,7 +1983,7 @@ function Ui:CreateWindow(Config)
         for _, cfg in ipairs(configs) do
             table.insert(dropOptions, cfg)
             local isSelected = (CurrentConfigName == cfg)
-            local btnText = isSelected and ("✓  " .. cfg) or ("     " .. cfg)
+            local btnText = isSelected and ("     " .. cfg) or ("     " .. cfg)
             CfgLeft:AddButton({ 
                 Name = btnText, 
                 Selected = isSelected,
