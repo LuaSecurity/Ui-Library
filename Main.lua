@@ -1,9 +1,3 @@
--- Executor environment safety: cache core globals before any AC hooks can replace them
-local cloneref      = cloneref or function(t) return t end
-local Instance_new  = Instance.new
-
--- All services wrapped with cloneref so anti-cheats cannot trivially fingerprint
--- our references via pointer equality against the game-owned singletons.
 local Players          = cloneref(game:GetService("Players"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local TweenService     = cloneref(game:GetService("TweenService"))
