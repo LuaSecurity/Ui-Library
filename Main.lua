@@ -1,19 +1,11 @@
-local Players          = cloneref(game:GetService("Players"))
-local UserInputService = cloneref(game:GetService("UserInputService"))
-local TweenService     = cloneref(game:GetService("TweenService"))
-local CoreGui          = cloneref(game:GetService("CoreGui"))
-local RunService       = cloneref(game:GetService("RunService"))
-local HttpService      = cloneref(game:GetService("HttpService"))
-local TextService      = cloneref(game:GetService("TextService"))
-local GuiService       = cloneref(game:GetService("GuiService"))
-
--- gethui returns the protected UI container; cloneref its result too
-local function get_hui()
-    if typeof(gethui) == "function" then
-        return cloneref(gethui())
-    end
-    return CoreGui
-end
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local TextService = game:GetService("TextService")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -27,8 +19,7 @@ local Icons = {}
 local success, result = pcall(function()
     return loadstring(game:HttpGet(IconsURL))()
 end)
--- Icons is a plain Lua table — cloneref is for Roblox Instances/services only
-if success and type(result) == "table" then
+if success and result then
     Icons = result
 end
 
@@ -95,8 +86,7 @@ local NotificationGradients = {
 local CurrentFont = Enum.Font.GothamBold
 
 local function Create(className, properties)
-    -- Use the upvalue-cached Instance.new so post-init AC hooks on the global don't intercept us
-    local inst = Instance_new(className)
+    local inst = Instance.new(className)
     for k, v in pairs(properties) do
         if k ~= "Parent" then inst[k] = v end
     end
@@ -149,9 +139,6 @@ local function Capitalize(str)
 end
 
 function Ui:Unload()
-    -- Search via get_hui() and CoreGui (cloned refs) for robustness
-    local hui = get_hui()
-    if hui and hui:FindFirstChild("dihwareUI") then hui.dihwareUI:Destroy() end
     if CoreGui:FindFirstChild("dihwareUI") then CoreGui.dihwareUI:Destroy() end
 end
 
@@ -163,7 +150,7 @@ function Ui:CreateWindow(Config)
 
     local ScreenGui = Create("ScreenGui", { 
         Name = "dihwareUI", 
-        Parent = get_hui(), 
+        Parent = CoreGui, 
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling, 
         IgnoreGuiInset = true 
     })
@@ -299,13 +286,13 @@ function Ui:CreateWindow(Config)
         UpdateOverlayVisibility()
     end
 
-    local baseSnowflake = Instance_new("Frame")
+    local baseSnowflake = Instance.new("Frame")
     baseSnowflake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     baseSnowflake.BorderSizePixel = 0
     baseSnowflake.AnchorPoint = Vector2.new(0.5, 0.5)
     baseSnowflake.ZIndex = 0
 
-    local roundness = Instance_new("UICorner")
+    local roundness = Instance.new("UICorner")
     roundness.CornerRadius = UDim.new(1, 0)
     roundness.Parent = baseSnowflake
 
@@ -342,13 +329,13 @@ function Ui:CreateWindow(Config)
         table.insert(snowflakeList, particleData)
     end
 
-    local baseSnowflakeOverlay = Instance_new("Frame")
+    local baseSnowflakeOverlay = Instance.new("Frame")
     baseSnowflakeOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     baseSnowflakeOverlay.BorderSizePixel = 0
     baseSnowflakeOverlay.AnchorPoint = Vector2.new(0.5, 0.5)
     baseSnowflakeOverlay.ZIndex = 51
 
-    local roundnessOverlay = Instance_new("UICorner")
+    local roundnessOverlay = Instance.new("UICorner")
     roundnessOverlay.CornerRadius = UDim.new(1, 0)
     roundnessOverlay.Parent = baseSnowflakeOverlay
 
@@ -384,43 +371,15 @@ function Ui:CreateWindow(Config)
         table.insert(snowflakeListOverlay, particleData)
     end
 
-    -- Single consolidated RenderStepped connection for all per-frame work.
-    -- Using one connection instead of three reduces the signal-connection fingerprint
-    -- that anti-cheats can enumerate via getconnections(RunService.RenderStepped).
-    local StartTime = tick()
-    local masterConnection
-    masterConnection = RunService.RenderStepped:Connect(function(deltaTime)
-        -- Guard: disconnect if the frame was destroyed
+    local snowConnection
+    snowConnection = RunService.RenderStepped:Connect(function(deltaTime)
         if not MainFrame or not MainFrame.Parent then
-            masterConnection:Disconnect()
+            if snowConnection then
+                snowConnection:Disconnect()
+            end
             return
         end
 
-        -- Uptime ticker
-        local uptime = tick() - StartTime
-        UptimeLabel.Text = string.format("%02d:%02d:%02d",
-            math.floor(uptime / 3600),
-            math.floor((uptime % 3600) / 60),
-            math.floor(uptime % 60))
-
-        -- Tooltip follower
-        if TooltipGui and TooltipGui.Visible then
-            local mousePos = UserInputService:GetMouseLocation()
-            TooltipGui.Position = UDim2.new(0, mousePos.X + 15, 0, mousePos.Y + 15)
-        end
-
-        -- Tab indicator lerp
-        if WindowObj.CurrentTab and WindowObj.Tabs[WindowObj.CurrentTab] then
-            local activeBtn = WindowObj.Tabs[WindowObj.CurrentTab].Button
-            if activeBtn then
-                local targetX     = activeBtn.AbsolutePosition.X - TabContainer.AbsolutePosition.X
-                local targetWidth  = activeBtn.AbsoluteSize.X
-                ActiveIndicator.Position = ActiveIndicator.Position:Lerp(UDim2.new(0, targetX, 0.5, 0), 0.35)
-                ActiveIndicator.Size     = ActiveIndicator.Size:Lerp(UDim2.new(0, targetWidth, 1, -10), 0.35)
-            end
-        end
-
-        -- Main frame snowflakes
         if MainFrame.Visible then
             timeAccumulator = timeAccumulator + deltaTime
             local spawnThreshold = 1 / targetSpawnRate
@@ -432,11 +391,11 @@ function Ui:CreateWindow(Config)
 
             for index = #snowflakeList, 1, -1 do
                 local particle = snowflakeList[index]
-                particle.lifeTimer        = particle.lifeTimer + deltaTime
+                
+                particle.lifeTimer = particle.lifeTimer + deltaTime
                 particle.verticalProgress = particle.verticalProgress + (particle.fallRate * deltaTime)
 
-                local currentHorizontal = particle.horizontalOrigin
-                    + (math.sin(particle.lifeTimer * particle.driftFrequency) * particle.driftMagnitude)
+                local currentHorizontal = particle.horizontalOrigin + (math.sin(particle.lifeTimer * particle.driftFrequency) * particle.driftMagnitude)
 
                 particle.element.Position = UDim2.new(currentHorizontal, 0, particle.verticalProgress, -particle.pixelSize)
 
@@ -447,7 +406,6 @@ function Ui:CreateWindow(Config)
             end
         end
 
-        -- Overlay frame snowflakes
         if OverlayFrame.Visible then
             timeAccumulatorOverlay = timeAccumulatorOverlay + deltaTime
             local spawnThresholdOverlay = 1 / targetSpawnRateOverlay
@@ -458,17 +416,17 @@ function Ui:CreateWindow(Config)
             end
 
             local overlayHeight = OverlayFrame.AbsoluteSize.Y > 0 and OverlayFrame.AbsoluteSize.Y or 100
-            local overlayWidth  = OverlayFrame.AbsoluteSize.X  > 0 and OverlayFrame.AbsoluteSize.X  or 200
+            local overlayWidth = OverlayFrame.AbsoluteSize.X > 0 and OverlayFrame.AbsoluteSize.X or 200
             local speedMult = 600 / overlayHeight
-            local swayMult  = 750 / overlayWidth
+            local swayMult = 750 / overlayWidth
 
             for index = #snowflakeListOverlay, 1, -1 do
                 local particle = snowflakeListOverlay[index]
-                particle.lifeTimer        = particle.lifeTimer + deltaTime
+                
+                particle.lifeTimer = particle.lifeTimer + deltaTime
                 particle.verticalProgress = particle.verticalProgress + (particle.fallRate * deltaTime * speedMult)
 
-                local currentHorizontal = particle.horizontalOrigin
-                    + (math.sin(particle.lifeTimer * particle.driftFrequency) * particle.driftMagnitude * swayMult)
+                local currentHorizontal = particle.horizontalOrigin + (math.sin(particle.lifeTimer * particle.driftFrequency) * particle.driftMagnitude * swayMult)
 
                 particle.element.Position = UDim2.new(currentHorizontal, 0, particle.verticalProgress, -particle.pixelSize)
 
@@ -519,6 +477,15 @@ function Ui:CreateWindow(Config)
         BackgroundTransparency = 1,
         Font = Enum.Font.Code, TextSize = 12, TextColor3 = Theme.TextMuted, Text = "00:00:00", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21
     })
+
+    local StartTime = tick()
+    RunService.RenderStepped:Connect(function()
+        local uptime = tick() - StartTime
+        local hours = math.floor(uptime / 3600)
+        local mins = math.floor((uptime % 3600) / 60)
+        local secs = math.floor(uptime % 60)
+        UptimeLabel.Text = string.format("%02d:%02d:%02d", hours, mins, secs)
+    end)
 
     local draggingResize = false
     local dragEdge = ""
@@ -671,11 +638,10 @@ function Ui:CreateWindow(Config)
             local url = "https://cdn.discordapp.com/attachments/1455351271740539145/1476690209805570261/gta_noti_sound.mp3?ex=69a4ad6d&is=69a35bed&hm=0b9c51dccbc8abf7a5c486f7d73d7e2964809ae66c781bbd4f2932750b927c10&"
             local file = "dihware_startup.mp3"
             if not isfile(file) then writefile(file, game:HttpGet(url)) end
-            -- Use upvalue-cached Instance_new and cloned CoreGui reference
-            local snd = Instance_new("Sound")
+            local snd = Instance.new("Sound")
             snd.SoundId = getcustomasset(file)
             snd.Volume = 1
-            snd.Parent = CoreGui  -- CoreGui is already cloneref'd at top-level
+            snd.Parent = CoreGui
             snd:Play()
             snd.Ended:Connect(function() snd:Destroy() end)
         end)
@@ -779,7 +745,13 @@ function Ui:CreateWindow(Config)
     Create("UIStroke", { Parent = TooltipGui, Color = Theme.Divider, Thickness = 1 })
     Create("UIPadding", { Parent = TooltipGui, PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) })
     local TooltipText = Create("TextLabel", { Parent = TooltipGui, Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1, ZIndex = 2001, Font = CurrentFont, TextSize = 12, TextColor3 = Theme.Text, TextXAlignment = Enum.TextXAlignment.Left, AutomaticSize = Enum.AutomaticSize.XY })
-    -- Tooltip position is now updated inside the single masterConnection RenderStepped (declared below)
+
+    RunService.RenderStepped:Connect(function()
+        if TooltipGui.Visible then
+            local mousePos = UserInputService:GetMouseLocation()
+            TooltipGui.Position = UDim2.new(0, mousePos.X + 15, 0, mousePos.Y + 15)
+        end
+    end)
 
     local function ShowTooltip(text)
         TooltipText.Text = text
@@ -934,7 +906,9 @@ function Ui:CreateWindow(Config)
         ModalOverlay.Visible = true
     end
 
+    local oldClose = CloseMenus
     local function CloseMenus()
+        if oldClose then oldClose() end
         CloseOverlay.Visible = false
         for _, obj in pairs(WindowObj.DropdownContainers) do
             if obj.Container.Visible then
@@ -956,8 +930,18 @@ function Ui:CreateWindow(Config)
             UpdateOverlayVisibility()
         end
     end)
-    -- NOTE: Tab indicator lerp and tooltip follow are handled inside the masterConnection
-    -- RenderStepped that is created further below, after UptimeLabel is declared.
+
+    RunService.RenderStepped:Connect(function()
+        if WindowObj.CurrentTab and WindowObj.Tabs[WindowObj.CurrentTab] then
+            local activeBtn = WindowObj.Tabs[WindowObj.CurrentTab].Button
+            if activeBtn then
+                local targetX = activeBtn.AbsolutePosition.X - TabContainer.AbsolutePosition.X
+                local targetWidth = activeBtn.AbsoluteSize.X
+                ActiveIndicator.Position = ActiveIndicator.Position:Lerp(UDim2.new(0, targetX, 0.5, 0), 0.35)
+                ActiveIndicator.Size = ActiveIndicator.Size:Lerp(UDim2.new(0, targetWidth, 1, -10), 0.35)
+            end
+        end
+    end)
 
     function WindowObj:Notify(Config)
         local Content = Config.Content or Config.Title or "Notification"
